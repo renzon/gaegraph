@@ -33,6 +33,7 @@ class UseCase(object):
         '''
         return []
 
+
 def execute(use_cases,stop_on_error=False):
     '''
     :param use_cases: list of UseCase or a single one to be executed
