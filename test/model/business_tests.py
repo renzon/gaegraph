@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
+from google.appengine.api import memcache
 from google.appengine.ext import ndb
 from gaegraph import business
 from gaegraph.business import UseCase
-from gaegraph.business_base import NodeSearch
-from gaegraph.model import Node
+from gaegraph.business_base import NodeSearch, NeighborsSearch
+from gaegraph.model import Node, Arc, neighbors_cache_key
 from model.util import GAETestCase
 
 
@@ -86,5 +87,19 @@ class NodeAccessTests(GAETestCase):
         self.assertEqual(node_key, node_search.node.key)
 
 
-
+class NeighborsTests(GAETestCase):
+    def test_search(self):
+        origin = Node()
+        neighbors = [Node() for i in xrange(3)]
+        ndb.put_multi([origin] + neighbors)
+        arcs = [Arc(origin=origin.key, destination=d.key) for d in neighbors]
+        ndb.put_multi(arcs)
+        search = NeighborsSearch(Arc, origin)
+        business.execute(search)
+        expected_keys = [n.key for n in neighbors]
+        actual_keys = [n.key for n in search.neighbors]
+        self.assertItemsEqual(expected_keys, actual_keys)
+        neighbors_in_cache = memcache.get(neighbors_cache_key(Arc, origin))
+        cache_keys = [n.key for n in neighbors_in_cache]
+        self.assertItemsEqual(expected_keys, cache_keys)
 
