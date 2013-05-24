@@ -99,7 +99,6 @@ class NeighborsTests(GAETestCase):
         expected_keys = [n.key for n in neighbors]
         actual_keys = [n.key for n in search.neighbors]
         self.assertItemsEqual(expected_keys, actual_keys)
-        neighbors_in_cache = memcache.get(neighbors_cache_key(Arc, origin))
-        cache_keys = [n.key for n in neighbors_in_cache]
+        cache_keys = memcache.get(neighbors_cache_key(Arc, origin))
         self.assertItemsEqual(expected_keys, cache_keys)
 

@@ -34,27 +34,30 @@ class NeighborsSearch(UseCase):
         self.origin = origin
         self.arc_cls = arc_cls
         self._cache_key = neighbors_cache_key(arc_cls, origin)
-        self.neighbors_in_cache = None
+        self._neighbors_cached_keys = None
+        self.neighbors=[]
 
     def set_up(self):
         try:
-            self.neighbors_in_cache = memcache.get(self._cache_key)
+            self._neighbors_cached_keys = memcache.get(self._cache_key)
         except Exception:
             # If memcache fails, do nothing
             pass
         try:
-            if self.neighbors_in_cache is None:
+            if self._neighbors_cached_keys is None:
                 query = self.arc_cls.neighbors(self.origin)
                 self._future = query.fetch_async()
         except ValueError:
             self.add_error("origin", LONG_ERROR)
 
     def do_business(self):
-        if self.neighbors_in_cache:
-            self.neighbors = self.neighbors_in_cache
-        else:
+        neighbor_keys= self._neighbors_cached_keys
+        if neighbor_keys is None:
             neighbor_keys = [arc.destination for arc in self._future.get_result()]
+            memcache.set(self._cache_key, neighbor_keys)
+        if neighbor_keys:
             self.neighbors = ndb.get_multi(neighbor_keys)
-            memcache.set(self._cache_key, self.neighbors)
+
+
 
 
