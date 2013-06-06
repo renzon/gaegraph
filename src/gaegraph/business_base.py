@@ -10,7 +10,7 @@ LONG_ERROR = "LONG_ERROR"
 
 class NodeSearch(UseCase):
     '''
-    Usecase for search a node by its id
+    Usecase for search a result by its id
     '''
 
     def __init__(self, id):
@@ -25,7 +25,7 @@ class NodeSearch(UseCase):
             self.add_error("id", LONG_ERROR)
 
     def do_business(self):
-        self.node = self._future.get_result()
+        self.result = self._future.get_result()
 
 
 class NeighborsSearch(UseCase):
@@ -35,7 +35,7 @@ class NeighborsSearch(UseCase):
         self.arc_cls = arc_cls
         self._cache_key = neighbors_cache_key(arc_cls, origin)
         self._neighbors_cached_keys = None
-        self.neighbors=[]
+        self.result=[]
 
     def set_up(self):
         try:
@@ -56,7 +56,7 @@ class NeighborsSearch(UseCase):
             neighbor_keys = [arc.destination for arc in self._future.get_result()]
             memcache.set(self._cache_key, neighbor_keys)
         if neighbor_keys:
-            self.neighbors = ndb.get_multi(neighbor_keys)
+            self.result = ndb.get_multi(neighbor_keys)
 
 
 

@@ -24,7 +24,7 @@ class UseCaseMock(UseCase):
         self.set_up_executed = False
         self.commit_executed = False
         self._model_ppt = model_ppt
-        self.model = None
+        self.result = None
 
     def set_up(self):
         if self.business_error:
@@ -32,21 +32,21 @@ class UseCaseMock(UseCase):
         self.set_up_executed = True
 
     def do_business(self):
-        self.model = ModelMock(ppt=self._model_ppt)
+        self.result = ModelMock(ppt=self._model_ppt)
 
     def commit(self):
-        return self.model
+        return self.result
 
 
 class BusinessTests(GAETestCase):
     def assert_usecase_executed(self, usecase, model_ppt):
         self.assertTrue(usecase.set_up_executed)
-        self.assertEqual(model_ppt, usecase.model.ppt, "do_business not executed")
-        self.assertIsNotNone(usecase.model.key, "model should be saved on db")
+        self.assertEqual(model_ppt, usecase.result.ppt, "do_business not executed")
+        self.assertIsNotNone(usecase.result.key, "result should be saved on db")
 
     def assert_usecase_not_executed(self, usecase):
         self.assertTrue(usecase.set_up_executed)
-        self.assertIsNone(usecase.model)
+        self.assertIsNone(usecase.result)
 
 
     def test_execute_successful_business(self):
@@ -81,10 +81,10 @@ class NodeAccessTests(GAETestCase):
     def test_execution(self):
         node_search = NodeSearch("1")
         business.execute(node_search)
-        self.assertIsNone(node_search.node)
+        self.assertIsNone(node_search.result)
         node_key = Node(id=1).put()
         business.execute(node_search)
-        self.assertEqual(node_key, node_search.node.key)
+        self.assertEqual(node_key, node_search.result.key)
 
 
 class NeighborsTests(GAETestCase):
@@ -97,7 +97,7 @@ class NeighborsTests(GAETestCase):
         search = NeighborsSearch(Arc, origin)
         business.execute(search)
         expected_keys = [n.key for n in neighbors]
-        actual_keys = [n.key for n in search.neighbors]
+        actual_keys = [n.key for n in search.result]
         self.assertItemsEqual(expected_keys, actual_keys)
         cache_keys = memcache.get(neighbors_cache_key(Arc, origin))
         self.assertItemsEqual(expected_keys, cache_keys)

@@ -10,6 +10,7 @@ class UseCaseException(Exception):
 class UseCase(object):
     def __init__(self):
         self.errors = {}
+        self.result=None
 
     def add_error(self, key, msg):
         self.errors[key] = msg
