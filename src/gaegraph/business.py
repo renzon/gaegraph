@@ -18,7 +18,7 @@ class UseCase(object):
     def set_up(self):
         '''
         Must set_up data for business.
-        It should validate inputs and fetch data asyncrounously
+        It should fetch data asyncrounously if need
         '''
         pass
 
