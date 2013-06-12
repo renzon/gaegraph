@@ -2,7 +2,7 @@
 from __future__ import absolute_import, unicode_literals
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-from gaegraph.business import UseCase
+from gaebusiness.business import UseCase
 from gaegraph.model import Node, neighbors_cache_key
 
 LONG_ERROR = "LONG_ERROR"
