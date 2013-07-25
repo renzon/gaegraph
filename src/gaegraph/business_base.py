@@ -2,13 +2,13 @@
 from __future__ import absolute_import, unicode_literals
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-from gaebusiness.business import UseCase
+from gaebusiness.business import Command
 from gaegraph.model import Node, neighbors_cache_key
 
 LONG_ERROR = "LONG_ERROR"
 
 
-class NodeSearch(UseCase):
+class NodeSearch(Command):
     '''
     Usecase for search a result by its id
     '''
@@ -28,7 +28,7 @@ class NodeSearch(UseCase):
         self.result = self._future.get_result()
 
 
-class NeighborsSearch(UseCase):
+class NeighborsSearch(Command):
     def __init__(self, arc_cls, origin):
         super(NeighborsSearch, self).__init__()
         self.origin = origin

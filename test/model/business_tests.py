@@ -13,10 +13,10 @@ from model.util import GAETestCase
 class NodeAccessTests(GAETestCase):
     def test_execution(self):
         node_search = NodeSearch("1")
-        business.execute(node_search)
+        node_search.execute()
         self.assertIsNone(node_search.result)
         node_key = Node(id=1).put()
-        business.execute(node_search)
+        node_search.execute()
         self.assertEqual(node_key, node_search.result.key)
 
 
@@ -28,7 +28,7 @@ class NeighborsTests(GAETestCase):
         arcs = [Arc(origin=origin.key, destination=d.key) for d in neighbors]
         ndb.put_multi(arcs)
         search = NeighborsSearch(Arc, origin)
-        business.execute(search)
+        search.execute()
         expected_keys = [n.key for n in neighbors]
         actual_keys = [n.key for n in search.result]
         self.assertItemsEqual(expected_keys, actual_keys)
