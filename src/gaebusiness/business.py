@@ -3,14 +3,15 @@ from __future__ import absolute_import, unicode_literals
 from google.appengine.ext import ndb
 
 
-class UseCaseException(Exception):
-    pass
+def to_model_list(models):
+    if models is None:
+        return []
+    return [models] if isinstance(models, ndb.Model) else models
 
-
-class UseCase(object):
+class Command(object):
     def __init__(self):
         self.errors = {}
-        self.result=None
+        self.result = None
 
     def add_error(self, key, msg):
         self.errors[key] = msg
@@ -34,39 +35,39 @@ class UseCase(object):
         '''
         return []
 
+    def execute(self,stop_on_error=False):
+        self.set_up()
+        self.do_business()
+        if not self.errors:
+            ndb.put_multi(to_model_list(self.commit()))
 
-def execute(use_cases, stop_on_error=False):
-    '''
-    :param use_cases: list of UseCase or a single one to be executed
-    :param stop_on_error: boolean. Indicate if should stop running next use_cases if a error ocurs
-    Executes a list of use_cases asynchronously,
-    first the set_up, later the do_business if there are and last
-    '''
-    if isinstance(use_cases, UseCase):
-        use_cases = [use_cases]
+class CommandList(Command):
+    def __init__(self,commands):
+        super(CommandList,self).__init__()
+        self.commands=commands
 
-    for setting_up_uc in use_cases:
-        setting_up_uc.set_up()
+    def execute(self,stop_on_error=False):
+        '''
+        :param stop_on_error: boolean. Indicate if should stop running next commands if a error ocurs
+        Executes a list of commands asynchronously,
+        first the set_up, second the do_business and last the commit
+        '''
+        for setting_up_command in self.commands:
+            setting_up_command.set_up()
 
-    for business_uc in use_cases:
-        if business_uc.errors:
-            if stop_on_error:
-                return business_uc.errors
-        else:
-            business_uc.do_business()
+        for business_command in self.commands:
+            if business_command.errors:
+                if stop_on_error:
+                    return business_command.errors
+            else:
+                business_command.do_business()
 
-    def to_model_list(models):
-        return [models] if isinstance(models, ndb.Model) else models
+        to_commit = []
+        for committing_command in self.commands:
+            to_commit.extend(to_model_list(committing_command.commit()))
+        if to_commit:
+            ndb.put_multi(to_commit)
 
-    to_commit = []
-    for committing_uc in use_cases:
-        if not committing_uc.errors:
-            to_commit.extend(to_model_list(committing_uc.commit()))
-    if to_commit:
-        ndb.put_multi(to_commit)
-
-    errors = {}
-    for uc in use_cases:
-        errors.update(uc.errors)
-    return errors
-
+        for command in self.commands:
+            self.errors.update(command.errors)
+        return self.errors

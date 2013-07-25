@@ -2,7 +2,7 @@
 from __future__ import absolute_import, unicode_literals
 from google.appengine.ext import ndb
 from gaebusiness import business
-from gaebusiness.business import UseCase
+from gaebusiness.business import Command, CommandList
 from util import GAETestCase
 
 
@@ -14,9 +14,9 @@ ERROR_KEY = "error_key"
 ERROR_MSG = "TEST_ERROR"
 
 
-class UseCaseMock(UseCase):
+class CommandMock(Command):
     def __init__(self, model_ppt, business_error=False):
-        super(UseCaseMock, self).__init__()
+        super(CommandMock, self).__init__()
         self.business_error = business_error
         self.set_up_executed = False
         self.commit_executed = False
@@ -49,28 +49,31 @@ class BusinessTests(GAETestCase):
     def test_execute_successful_business(self):
         MOCK_1 = "mock 1"
         MOCK_2 = "mock 2"
-        usecases = [UseCaseMock(MOCK_1), UseCaseMock(MOCK_2)]
-        errors = business.execute(usecases)
-        self.assert_usecase_executed(usecases[0], MOCK_1)
-        self.assert_usecase_executed(usecases[1], MOCK_2)
+        commands=[CommandMock(MOCK_1), CommandMock(MOCK_2)]
+        command_list = CommandList(commands)
+        errors = command_list.execute()
+        self.assert_usecase_executed(commands[0], MOCK_1)
+        self.assert_usecase_executed(commands[1], MOCK_2)
         self.assertDictEqual({}, errors)
 
     def test_execute_business_not_stopping_on_error(self):
         MOCK_1 = "mock 1"
         MOCK_2 = "mock 2"
-        usecases = [UseCaseMock(MOCK_1, True), UseCaseMock(MOCK_2)]
-        errors = business.execute(usecases)
-        self.assert_usecase_not_executed(usecases[0])
-        self.assert_usecase_executed(usecases[1], MOCK_2)
+        commands = [CommandMock(MOCK_1, True), CommandMock(MOCK_2)]
+        command_list = CommandList(commands)
+        errors = command_list.execute()
+        self.assert_usecase_not_executed(commands[0])
+        self.assert_usecase_executed(commands[1], MOCK_2)
         self.assertDictEqual({ERROR_KEY: ERROR_MSG}, errors)
 
     def test_execute_business_stopping_on_error(self):
         MOCK_1 = "mock 1"
         MOCK_2 = "mock 2"
-        usecases = [UseCaseMock(MOCK_1, True), UseCaseMock(MOCK_2)]
-        errors = business.execute(usecases, True)
-        self.assert_usecase_not_executed(usecases[0])
-        self.assert_usecase_not_executed(usecases[0])
+        commands = [CommandMock(MOCK_1, True), CommandMock(MOCK_2)]
+        command_list = CommandList(commands)
+        errors = command_list.execute(True)
+        self.assert_usecase_not_executed(commands[0])
+        self.assert_usecase_not_executed(commands[0])
         self.assertDictEqual({ERROR_KEY: ERROR_MSG}, errors)
 
 
