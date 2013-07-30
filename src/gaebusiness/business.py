@@ -8,6 +8,7 @@ def to_model_list(models):
         return []
     return [models] if isinstance(models, ndb.Model) else models
 
+
 class Command(object):
     def __init__(self):
         self.errors = {}
@@ -19,11 +20,11 @@ class Command(object):
     def set_up(self):
         '''
         Must set_up data for business.
-        It should fetch data asyncrounously if need
+        It should fetch data asyncrounously if needed
         '''
         pass
 
-    def do_business(self):
+    def do_business(self, stop_on_error=False):
         '''
         Must do the main business of use case
         '''
@@ -35,39 +36,34 @@ class Command(object):
         '''
         return []
 
-    def execute(self,stop_on_error=False):
+    def execute(self, stop_on_error=False):
         self.set_up()
-        self.do_business()
-        if not self.errors:
-            ndb.put_multi(to_model_list(self.commit()))
+        self.do_business(stop_on_error)
+        ndb.put_multi(to_model_list(self.commit()))
+        return self.errors
+
 
 class CommandList(Command):
-    def __init__(self,commands):
-        super(CommandList,self).__init__()
-        self.commands=commands
+    def __init__(self, commands):
+        super(CommandList, self).__init__()
+        self.commands = commands
 
-    def execute(self,stop_on_error=False):
-        '''
-        :param stop_on_error: boolean. Indicate if should stop running next commands if a error ocurs
-        Executes a list of commands asynchronously,
-        first the set_up, second the do_business and last the commit
-        '''
-        for setting_up_command in self.commands:
-            setting_up_command.set_up()
+    def set_up(self):
+        for cmd in self.commands:
+            cmd.set_up()
 
-        for business_command in self.commands:
-            if business_command.errors:
+    def do_business(self, stop_on_error=False):
+        for cmd in self.commands:
+            if cmd.errors:
+                self.errors.update(cmd.errors)
                 if stop_on_error:
-                    return business_command.errors
+                    return cmd.errors
             else:
-                business_command.do_business()
-
-        to_commit = []
-        for committing_command in self.commands:
-            to_commit.extend(to_model_list(committing_command.commit()))
-        if to_commit:
-            ndb.put_multi(to_commit)
-
-        for command in self.commands:
-            self.errors.update(command.errors)
+                cmd.do_business()
         return self.errors
+
+    def commit(self):
+        to_commit = []
+        for cmd in self.commands:
+            to_commit.extend(to_model_list(cmd.commit()))
+        return to_commit
