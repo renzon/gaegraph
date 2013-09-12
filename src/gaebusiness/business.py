@@ -54,12 +54,11 @@ class CommandList(Command):
 
     def do_business(self, stop_on_error=False):
         for cmd in self.commands:
-            if cmd.errors:
-                self.errors.update(cmd.errors)
-                if stop_on_error:
-                    return cmd.errors
-            else:
+            if not cmd.errors:
                 cmd.do_business()
+            self.errors.update(cmd.errors)
+            if stop_on_error and self.errors:
+                return self.errors
         return self.errors
 
     def commit(self):
