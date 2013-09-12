@@ -4,7 +4,7 @@ import unittest
 import urllib
 from google.appengine.api import urlfetch
 from gaebusiness import gaeutil
-from gaebusiness.gaeutil import UrlFecthCommand
+from gaebusiness.gaeutil import UrlFecthCommand, TaskQueueCommand
 from mock import Mock
 
 
@@ -40,5 +40,23 @@ class UrlfecthTests(unittest.TestCase):
         command = UrlFecthCommand(url, params, validate_certificate=False)
         command.execute()
         self.assertEqual(result, command.result)
-        fetch.assert_called_once_with(rpc, '%s?%s' % (url, urllib.urlencode(params)),None, method=urlfetch.GET,
+        fetch.assert_called_once_with(rpc, '%s?%s' % (url, urllib.urlencode(params)), None, method=urlfetch.GET,
                                       validate_certificate=False, headers={})
+
+
+class TaskQueueTests(unittest.TestCase):
+    def test_queue_creation(self):
+        task_mock = Mock()
+        rpc_mock = Mock()
+        queue_mock = Mock()
+        gaeutil.Queue = queue_mock
+        gaeutil.taskqueue.create_rpc = Mock(return_value=rpc_mock)
+        gaeutil.Task = task_mock
+        queue_name = 'foo'
+        params = {'param1': 'bar'}
+        url = '/mytask'
+        cmd = TaskQueueCommand(queue_name, url, params=params)
+        cmd.execute()
+        task_mock.assert_called_once_with(url=url, params=params)
+        queue_mock.add_async.assert_called_once_with(queue_name, rpc=rpc_mock)
+        rpc_mock.get_result.assert_called_once_with()
