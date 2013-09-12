@@ -55,7 +55,7 @@ class CommandList(Command):
     def do_business(self, stop_on_error=False):
         for cmd in self.commands:
             if not cmd.errors:
-                cmd.do_business()
+                cmd.do_business(stop_on_error)
             self.errors.update(cmd.errors)
             if stop_on_error and self.errors:
                 return self.errors
