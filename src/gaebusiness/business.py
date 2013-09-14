@@ -10,9 +10,11 @@ def to_model_list(models):
 
 
 class Command(object):
-    def __init__(self):
+    def __init__(self,**kwargs):
         self.errors = {}
         self.result = None
+        for k,v in kwargs.iteritems():
+            setattr(self,k,v)
 
     def add_error(self, key, msg):
         self.errors[key] = msg
@@ -44,9 +46,10 @@ class Command(object):
 
 
 class CommandList(Command):
-    def __init__(self, commands):
-        super(CommandList, self).__init__()
+    def __init__(self, commands,**kwargs):
+        super(CommandList, self).__init__(**kwargs)
         self.commands = commands
+
 
     def set_up(self):
         for cmd in self.commands:
