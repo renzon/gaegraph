@@ -46,17 +46,19 @@ class UrlfecthTests(unittest.TestCase):
 
 class TaskQueueTests(unittest.TestCase):
     def test_queue_creation(self):
-        task_mock = Mock()
+        task_obj=Mock()
+        task_cls = Mock(return_value=task_obj)
         rpc_mock = Mock()
-        queue_mock = Mock()
-        gaeutil.Queue = queue_mock
+        queue_obj=Mock()
+        queue_cls = Mock(return_value=queue_obj)
+        gaeutil.Queue = queue_cls
         gaeutil.taskqueue.create_rpc = Mock(return_value=rpc_mock)
-        gaeutil.Task = task_mock
+        gaeutil.Task = task_cls
         queue_name = 'foo'
         params = {'param1': 'bar'}
         url = '/mytask'
         cmd = TaskQueueCommand(queue_name, url, params=params)
         cmd.execute()
-        task_mock.assert_called_once_with(url=url, params=params)
-        queue_mock.add_async.assert_called_once_with(queue_name, rpc=rpc_mock)
+        task_cls.assert_called_once_with(url=url, params=params)
+        queue_obj.add_async.assert_called_once_with(task_obj, rpc=rpc_mock)
         rpc_mock.get_result.assert_called_once_with()

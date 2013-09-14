@@ -44,7 +44,8 @@ class TaskQueueCommand(Command):
 
     def set_up(self):
         self._rpc = taskqueue.create_rpc()
-        Queue.add_async(self._queue_name, rpc=self._rpc)
+        q=Queue(self._queue_name)
+        q.add_async(self._task, rpc=self._rpc)
 
     def do_business(self, stop_on_error=False):
         self._rpc.get_result()
