@@ -2,8 +2,8 @@
 from __future__ import absolute_import, unicode_literals
 import urllib
 from google.appengine.api import urlfetch, taskqueue
-from google.appengine.api.labs.taskqueue.taskqueue import Task
-from google.appengine.api.taskqueue.taskqueue import Queue
+from google.appengine.api.taskqueue import Task
+from google.appengine.api.taskqueue import Queue
 from gaebusiness.business import Command
 
 
