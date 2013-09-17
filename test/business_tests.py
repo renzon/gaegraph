@@ -44,14 +44,14 @@ class CommandMockWithErrorOnBusiness(CommandMock):
 
 class BusinessTests(GAETestCase):
     def testCommandInit(self):
-        cmd=Command(a=1,b=2)
-        self.assertEqual(1,cmd.a)
-        self.assertEqual(2,cmd.b)
+        cmd = Command(a=1, b=2)
+        self.assertEqual(1, cmd.a)
+        self.assertEqual(2, cmd.b)
 
     def testCommandListInit(self):
-        cmd=CommandList([],c=1,d=2)
-        self.assertEqual(1,cmd.c)
-        self.assertEqual(2,cmd.d)
+        cmd = CommandList([], c=1, d=2)
+        self.assertEqual(1, cmd.c)
+        self.assertEqual(2, cmd.d)
 
     def assert_usecase_executed(self, usecase, model_ppt):
         self.assertTrue(usecase.set_up_executed)
@@ -83,7 +83,7 @@ class BusinessTests(GAETestCase):
         self.assert_usecase_not_executed(commands[0])
         self.assert_usecase_not_executed(commands[1])
         self.assert_usecase_executed(commands[2], MOCK_2)
-        self.assertDictEqual({ERROR_KEY: ERROR_MSG,ANOTHER_ERROR_KEY: ANOTHER_ERROR_MSG}, errors)
+        self.assertDictEqual({ERROR_KEY: ERROR_MSG, ANOTHER_ERROR_KEY: ANOTHER_ERROR_MSG}, errors)
 
     def test_execute_business_stopping_on_error(self):
         MOCK_1 = "mock 1"

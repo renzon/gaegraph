@@ -4,7 +4,7 @@ import unittest
 import urllib
 from google.appengine.api import urlfetch
 from gaebusiness import gaeutil
-from gaebusiness.gaeutil import UrlFecthCommand, TaskQueueCommand
+from gaebusiness.gaeutil import UrlFetchCommand, TaskQueueCommand
 from mock import Mock
 
 
@@ -20,7 +20,7 @@ class UrlfecthTests(unittest.TestCase):
         gaeutil.urlfetch.create_rpc = Mock(return_value=rpc)
         fetch = Mock()
         gaeutil.urlfetch.make_fetch_call = fetch
-        command = UrlFecthCommand(url, params, urlfetch.POST)
+        command = UrlFetchCommand(url, params, urlfetch.POST)
         command.execute()
         self.assertEqual(result, command.result)
         fetch.assert_called_once_with(rpc, url, urllib.urlencode(params), method=urlfetch.POST,
@@ -37,7 +37,7 @@ class UrlfecthTests(unittest.TestCase):
         gaeutil.urlfetch.create_rpc = Mock(return_value=rpc)
         fetch = Mock()
         gaeutil.urlfetch.make_fetch_call = fetch
-        command = UrlFecthCommand(url, params, validate_certificate=False)
+        command = UrlFetchCommand(url, params, validate_certificate=False)
         command.execute()
         self.assertEqual(result, command.result)
         fetch.assert_called_once_with(rpc, '%s?%s' % (url, urllib.urlencode(params)), None, method=urlfetch.GET,
@@ -46,10 +46,10 @@ class UrlfecthTests(unittest.TestCase):
 
 class TaskQueueTests(unittest.TestCase):
     def test_queue_creation(self):
-        task_obj=Mock()
+        task_obj = Mock()
         task_cls = Mock(return_value=task_obj)
         rpc_mock = Mock()
-        queue_obj=Mock()
+        queue_obj = Mock()
         queue_cls = Mock(return_value=queue_obj)
         gaeutil.Queue = queue_cls
         gaeutil.taskqueue.create_rpc = Mock(return_value=rpc_mock)
