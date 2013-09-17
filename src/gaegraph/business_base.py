@@ -13,9 +13,9 @@ class NodeSearch(Command):
     Usecase for search a result by its id
     '''
 
-    def __init__(self, id):
-        super(NodeSearch, self).__init__()
-        self.id = id
+    def __init__(self, id, **kwargs):
+        super(NodeSearch, self).__init__(id=id,**kwargs)
+
 
     def set_up(self):
         try:
@@ -24,15 +24,13 @@ class NodeSearch(Command):
         except ValueError:
             self.add_error("id", LONG_ERROR)
 
-    def do_business(self,stop_on_error=False):
+    def do_business(self, stop_on_error=False):
         self.result = self._future.get_result()
 
 
 class NeighborsSearch(Command):
-    def __init__(self, arc_cls, origin):
-        super(NeighborsSearch, self).__init__()
-        self.origin = origin
-        self.arc_cls = arc_cls
+    def __init__(self, arc_cls, origin, **kwargs):
+        super(NeighborsSearch, self).__init__(origin=origin, arc_cls=arc_cls, **kwargs)
         self._cache_key = neighbors_cache_key(arc_cls, origin)
         self._neighbors_cached_keys = None
         self.result = []
