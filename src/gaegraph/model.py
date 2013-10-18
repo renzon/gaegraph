@@ -18,6 +18,13 @@ def to_node_key(arg):
 
 
 class Arc(PolyModel):
+    def __init__(self, *args, **kwargs):
+        if 'origin' in kwargs:
+            kwargs['origin'] = to_node_key(kwargs['origin'])
+        if 'destination' in kwargs:
+            kwargs['destination'] = to_node_key(kwargs['destination'])
+        PolyModel.__init__(self, *args, **kwargs)
+
     creation = ndb.DateTimeProperty(auto_now_add=True)
     origin = ndb.KeyProperty(Node, required=True)
     destination = ndb.KeyProperty(Node, required=True)

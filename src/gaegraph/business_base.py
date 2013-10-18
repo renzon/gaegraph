@@ -67,8 +67,19 @@ class DestinationsSearch(ArcSearchBase):
                                                  arc_cls.find_destinations, **kwargs)
 
 
+class SingleDestinationSearh(DestinationsSearch):
+    def do_business(self, stop_on_error=False):
+        DestinationsSearch.do_business(self, stop_on_error)
+        self.result = self.result[0] if self.result else None
+
+
 class OriginsSearch(ArcSearchBase):
     def __init__(self, arc_cls, destination, **kwargs):
         super(OriginsSearch, self).__init__(arc_cls, destination, origins_cache_key, 'origin', 'destination',
                                             arc_cls.find_origins, **kwargs)
 
+
+class SingleOriginSearh(OriginsSearch):
+    def do_business(self, stop_on_error=False):
+        OriginsSearch.do_business(self, stop_on_error)
+        self.result = self.result[0] if self.result else None

@@ -2,7 +2,7 @@
 from __future__ import absolute_import, unicode_literals
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch
+from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearh, SingleOriginSearh
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key
 from model.util import GAETestCase
 
@@ -54,3 +54,22 @@ class ArcSearchTests(GAETestCase):
         Arc(origin=origins[0].key, destination=destination.key).put()
         self.assertIsNone(memcache.get(origins_cache_key(Arc, destination)))
 
+    def test_single_destination_search(self):
+        destination = Node()
+        origin = Node()
+        ndb.put_multi([destination, origin])
+        search = SingleDestinationSearh(Arc, origin).execute()
+        self.assertIsNone(search.result)
+        Arc(origin=origin, destination=destination).put()
+        search = SingleDestinationSearh(Arc, origin).execute()
+        self.assertEqual(destination.key, search.result.key)
+
+    def test_single_origin_search(self):
+        destination = Node()
+        origin = Node()
+        ndb.put_multi([destination, origin])
+        search = SingleOriginSearh(Arc, destination).execute()
+        self.assertIsNone(search.result)
+        Arc(origin=origin, destination=destination).put()
+        search = SingleOriginSearh(Arc, destination).execute()
+        self.assertEqual(origin.key, search.result.key)
