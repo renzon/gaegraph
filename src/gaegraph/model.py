@@ -5,9 +5,21 @@ from google.appengine.ext import ndb
 from google.appengine.ext.ndb.polymodel import PolyModel
 
 
+def _to_dict(include=None, exclude=None):
+    pass
+
+
 class Node(PolyModel):
     creation = ndb.DateTimeProperty(auto_now_add=True)
 
+    def to_dict(self, include=None, exclude=None):
+        dct = super(Node, self).to_dict(include=include, exclude=exclude)
+        if include:
+            if 'id' in include:
+                dct['id'] = str(self.key.id())
+        elif exclude is None or 'id' not in exclude:
+            dct['id'] = str(self.key.id())
+        return dct
 
 def to_node_key(arg):
     if isinstance(arg, ndb.Key):

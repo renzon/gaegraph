@@ -8,7 +8,7 @@ from gaegraph.model import Node, Arc, destinations_cache_key
 from model.util import GAETestCase
 
 
-class modelTests(unittest.TestCase):
+class modelTests(GAETestCase):
     def test_to_node_key(self):
         node = Node(id=1)
         self.assertEqual(node.key, model.to_node_key(1))
@@ -16,24 +16,48 @@ class modelTests(unittest.TestCase):
         self.assertEqual(node.key, model.to_node_key(node.key))
         self.assertEqual(node.key, model.to_node_key(node))
 
+    def test_to_dict(self):
+        class NodeMock(Node):
+            attr = ndb.StringProperty()
 
-class ArcTests(GAETestCase):
-    def test_neighbors(self):
-        root = Node(id=1)
-        neighbors = [Node(id=i) for i in xrange(2, 5)]
-        arcs = [Arc(origin=root.key, destination=n.key) for n in neighbors]
-        ndb.put_multi(arcs + neighbors + [root])
-        searched_arcs = Arc.find_destinations(root).fetch(10)
-        searched_neighbors_keys = [a.destination for a in searched_arcs]
-        neighbors_keys = [n.key for n in neighbors]
-        self.assertListEqual(neighbors_keys, searched_neighbors_keys)
+        node = NodeMock(id=1, attr='foo')
+        node.put()
+        # to_dict without arguments
+        dct = node.to_dict()
+        self.assertEqual(4, len(dct))
+        self.assertEqual('1', dct['id'])
+        self.assertEqual('foo', dct['attr'])
+        self.assertIsNotNone(dct['creation'])
 
-    def test_neighbors_cache_key(self):
-        node = Node(id=1)
-        self.assertEqual("Arc1", destinations_cache_key(Arc, node))
+        # with exclude arguments
+        dct = node.to_dict(exclude=('creation', 'class_'))
+        self.assertDictEqual({'id': '1', 'attr': 'foo'}, dct)
+        dct = node.to_dict(exclude=('creation', 'class_', 'id'))
+        self.assertDictEqual({'attr': 'foo'}, dct)
 
-        class SubArc(Arc):
-            pass
+        # with exclude arguments
+        dct = node.to_dict(include=('id', 'attr'))
+        self.assertDictEqual({'id': '1', 'attr': 'foo'}, dct)
+        dct = node.to_dict(include=('attr',))
+        self.assertDictEqual({'attr': 'foo'}, dct)
 
-        self.assertEqual("SubArc1", destinations_cache_key(SubArc, node))
+    class ArcTests(GAETestCase):
+        def test_neighbors(self):
+            root = Node(id=1)
+            neighbors = [Node(id=i) for i in xrange(2, 5)]
+            arcs = [Arc(origin=root.key, destination=n.key) for n in neighbors]
+            ndb.put_multi(arcs + neighbors + [root])
+            searched_arcs = Arc.find_destinations(root).fetch(10)
+            searched_neighbors_keys = [a.destination for a in searched_arcs]
+            neighbors_keys = [n.key for n in neighbors]
+            self.assertListEqual(neighbors_keys, searched_neighbors_keys)
+
+        def test_neighbors_cache_key(self):
+            node = Node(id=1)
+            self.assertEqual("Arc1", destinations_cache_key(Arc, node))
+
+            class SubArc(Arc):
+                pass
+
+            self.assertEqual("SubArc1", destinations_cache_key(SubArc, node))
 
