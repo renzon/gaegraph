@@ -1,2 +1,2 @@
-gaebusiness==2.9
+gaebusiness==2.10
 mock==1.0.1
