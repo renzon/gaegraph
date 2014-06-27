@@ -41,37 +41,40 @@ class modelTests(GAETestCase):
         dct = node.to_dict(include=('attr',))
         self.assertDictEqual({'attr': 'foo'}, dct)
 
-    class ArcTests(GAETestCase):
-        def assert_keys_assignment(self, n, n2):
-            a = Arc(n, n2)
-            self.assertEqual(a.origin, n.key)
-            self.assertEqual(a.destination, n2.key)
 
-        def test_init(self):
-            n = Node(id=1)
-            n.put()
-            n2 = Node(id=1)
-            n2.put()
-            self.assert_keys_assignment(n, n2)
+class ArcTests(GAETestCase):
+    def assert_keys_assignment(self, n, n2, origin_key, destination_key):
+        a = Arc(n, n2)
+        self.assertEqual(a.origin, origin_key)
+        self.assertEqual(a.destination, destination_key)
+
+    def test_init(self):
+        n = Node(id=1)
+        n.put()
+        n2 = Node(id=2)
+        n2.put()
+        self.assert_keys_assignment(n, n2, n.key, n2.key)
+        self.assert_keys_assignment(n.key, n2.key, n.key, n2.key)
+        self.assert_keys_assignment(1, 2, n.key, n2.key)
+        self.assert_keys_assignment('1', '2', n.key, n2.key)
 
 
+    def test_neighbors(self):
+        root = Node(id=1)
+        neighbors = [Node(id=i) for i in xrange(2, 5)]
+        arcs = [Arc(origin=root.key, destination=n.key) for n in neighbors]
+        ndb.put_multi(arcs + neighbors + [root])
+        searched_arcs = Arc.find_destinations(root).fetch(10)
+        searched_neighbors_keys = [a.destination for a in searched_arcs]
+        neighbors_keys = [n.key for n in neighbors]
+        self.assertListEqual(neighbors_keys, searched_neighbors_keys)
 
-        def test_neighbors(self):
-            root = Node(id=1)
-            neighbors = [Node(id=i) for i in xrange(2, 5)]
-            arcs = [Arc(origin=root.key, destination=n.key) for n in neighbors]
-            ndb.put_multi(arcs + neighbors + [root])
-            searched_arcs = Arc.find_destinations(root).fetch(10)
-            searched_neighbors_keys = [a.destination for a in searched_arcs]
-            neighbors_keys = [n.key for n in neighbors]
-            self.assertListEqual(neighbors_keys, searched_neighbors_keys)
+    def test_neighbors_cache_key(self):
+        node = Node(id=1)
+        self.assertEqual("Arc1", destinations_cache_key(Arc, node))
 
-        def test_neighbors_cache_key(self):
-            node = Node(id=1)
-            self.assertEqual("Arc1", destinations_cache_key(Arc, node))
+        class SubArc(Arc):
+            pass
 
-            class SubArc(Arc):
-                pass
-
-            self.assertEqual("SubArc1", destinations_cache_key(SubArc, node))
+        self.assertEqual("SubArc1", destinations_cache_key(SubArc, node))
 

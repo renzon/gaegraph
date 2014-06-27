@@ -21,6 +21,7 @@ class Node(PolyModel):
             dct['id'] = str(self.key.id())
         return dct
 
+
 def to_node_key(arg):
     if isinstance(arg, ndb.Key):
         return arg
@@ -30,12 +31,12 @@ def to_node_key(arg):
 
 
 class Arc(PolyModel):
-    def __init__(self, *args, **kwargs):
-        if 'origin' in kwargs:
-            kwargs['origin'] = to_node_key(kwargs['origin'])
-        if 'destination' in kwargs:
-            kwargs['destination'] = to_node_key(kwargs['destination'])
-        PolyModel.__init__(self, *args, **kwargs)
+    def __init__(self, origin=None, destination=None, **kwargs):
+        if origin:
+            origin = to_node_key(origin)
+        if destination:
+            destination = to_node_key(destination)
+        PolyModel.__init__(self, origin=origin, destination=destination, **kwargs)
 
     creation = ndb.DateTimeProperty(auto_now_add=True)
     origin = ndb.KeyProperty(Node, required=True)
