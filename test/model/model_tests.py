@@ -42,6 +42,20 @@ class modelTests(GAETestCase):
         self.assertDictEqual({'attr': 'foo'}, dct)
 
     class ArcTests(GAETestCase):
+        def assert_keys_assignment(self, n, n2):
+            a = Arc(n, n2)
+            self.assertEqual(a.origin, n.key)
+            self.assertEqual(a.destination, n2.key)
+
+        def test_init(self):
+            n = Node(id=1)
+            n.put()
+            n2 = Node(id=1)
+            n2.put()
+            self.assert_keys_assignment(n, n2)
+
+
+
         def test_neighbors(self):
             root = Node(id=1)
             neighbors = [Node(id=i) for i in xrange(2, 5)]

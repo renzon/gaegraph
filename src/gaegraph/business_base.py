@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
 from gaebusiness.business import Command
-from gaegraph.model import Node, destinations_cache_key, origins_cache_key
+from gaegraph.model import Node, destinations_cache_key, origins_cache_key, to_node_key
 
 LONG_ERROR = "LONG_ERROR"
 
@@ -13,25 +13,25 @@ class NodeSearch(Command):
     Usecase for search a result by its id
     '''
 
-    def __init__(self, id, **kwargs):
-        super(NodeSearch, self).__init__(id=id, **kwargs)
+    def __init__(self, node_or_key_or_id):
+        super(NodeSearch, self).__init__()
+        self.node_key = to_node_key(node_or_key_or_id)
+        self._future = None
 
 
     def set_up(self):
-        try:
-            id = long(self.id)
-            self._future = Node._get_by_id_async(id)
-        except ValueError:
-            self.add_error("id", LONG_ERROR)
+        self._future = self.node_key.get_async()
 
     def do_business(self, stop_on_error=False):
         self.result = self._future.get_result()
 
 
 class ArcSearchBase(Command):
-    def __init__(self, arc_cls, node, cache_key_fcn, arc_property, error_key, query, **kwargs):
-        super(ArcSearchBase, self).__init__(node=node, arc_cls=arc_cls, **kwargs)
+    def __init__(self, arc_cls, node, cache_key_fcn, arc_property, error_key, query):
+        super(ArcSearchBase, self).__init__()
         self._cache_key = cache_key_fcn(arc_cls, node)
+        self.node = node
+        self.arc_cls = arc_cls
         self._nodes_cached_keys = None
         self._arc_property = arc_property
         self.result = []
