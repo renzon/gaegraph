@@ -39,3 +39,4 @@ nosetests.xml
 
 # Testing code generation
 src/user/
+src/web/

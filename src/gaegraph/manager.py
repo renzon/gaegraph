@@ -21,18 +21,45 @@ def _create_file_if_not_existing(file_path, content=''):
 PY_HEADER = '''# -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals'''
 
+HOME_HTML = '''<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<body>
+    <h1>This is the automatic generated page for App "%s"</h1>
+</body>
+</html>'''
+
 
 def _create_package(package_path):
     _create_dir_if_not_existing(package_path)
     _create_file_if_not_existing(os.path.join(package_path, '__init__.py'))
-    _create_file_if_not_existing(os.path.join(package_path, 'model.py'), PY_HEADER)
-    _create_file_if_not_existing(os.path.join(package_path, 'commands.py'), PY_HEADER)
-    _create_file_if_not_existing(os.path.join(package_path, 'facade.py'), PY_HEADER)
+
+
+def _create_app(app_path):
+    _create_package(app_path)
+    _create_file_if_not_existing(os.path.join(app_path, 'model.py'), PY_HEADER)
+    _create_file_if_not_existing(os.path.join(app_path, 'commands.py'), PY_HEADER)
+    _create_file_if_not_existing(os.path.join(app_path, 'facade.py'), PY_HEADER)
+
+
+def _create_templates(name, web_path):
+    templates_path = os.path.join(web_path, 'templates')
+    _create_dir_if_not_existing(templates_path)
+    templates_path = os.path.join(templates_path, name)
+    _create_dir_if_not_existing(templates_path)
+    home_file = os.path.join(templates_path, 'home.html')
+    _create_file_if_not_existing(home_file, HOME_HTML % name)
 
 
 def create_app(name):
-    package_path = os.path.join(SRC_DIR, name)
-    _create_package(package_path)
+    app_path = os.path.join(SRC_DIR, name)
+    _create_app(app_path)
+    web_path = os.path.join(SRC_DIR, 'web')
+    _create_package(web_path)
+    _create_templates(name, web_path)
 
 
 if __name__ == '__main__':
