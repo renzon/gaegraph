@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
+
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearh, SingleOriginSearh
+
+from gaeforms.ndb.form import ModelForm
+from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearh, \
+    SingleOriginSearh, UpdateNode, DeleteNode
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key
 from model.util import GAETestCase
+from mommygae import mommy
 
 
 class NodeAccessTests(GAETestCase):
@@ -73,3 +78,34 @@ class ArcSearchTests(GAETestCase):
         Arc(origin=origin, destination=destination).put()
         search = SingleOriginSearh(Arc, destination).execute()
         self.assertEqual(origin.key, search.result.key)
+
+
+class NodeStub(Node):
+    name = ndb.StringProperty(required=True)
+    age = ndb.IntegerProperty(required=True)
+
+
+class NodeForm(ModelForm):
+    _model_class = NodeStub
+    _include = [NodeStub.name, NodeStub.age]
+
+
+class UpdateNodeStub(UpdateNode):
+    _model_form_class = NodeForm
+
+
+class GaeBusinessCommandsShortcutsTests(GAETestCase):
+    def test_update_node_creating_node_key(self):
+        node = mommy.save_one(NodeStub)
+        self.assertEqual(node.key, UpdateNodeStub(node).model_key)
+        self.assertEqual(node.key, UpdateNodeStub(node.key).model_key)
+        self.assertEqual(node.key, UpdateNodeStub(node.key.id()).model_key)
+        self.assertEqual(node.key, UpdateNodeStub(unicode(node.key.id())).model_key)
+
+    def test_delete_node_creating_node_key(self):
+        nodes = [mommy.save_one(NodeStub) for i in range(3)]
+        node_keys = tuple(n.key for n in nodes)
+        self.assertTupleEqual(node_keys, DeleteNode(*node_keys).model_keys)
+        self.assertTupleEqual(node_keys, DeleteNode(*[k.id() for k in node_keys]).model_keys)
+        self.assertTupleEqual(node_keys, DeleteNode(*[unicode(k.id()) for k in node_keys]).model_keys)
+        self.assertTupleEqual(node_keys, DeleteNode(*nodes).model_keys)

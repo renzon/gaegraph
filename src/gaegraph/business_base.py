@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
 from gaebusiness.business import Command
+from gaebusiness.gaeutil import UpdateCommand, DeleteCommand
 from gaegraph.model import Node, destinations_cache_key, origins_cache_key, to_node_key
 
 LONG_ERROR = "LONG_ERROR"
@@ -83,3 +84,13 @@ class SingleOriginSearh(OriginsSearch):
     def do_business(self, stop_on_error=False):
         OriginsSearch.do_business(self, stop_on_error)
         self.result = self.result[0] if self.result else None
+
+
+class UpdateNode(UpdateCommand):
+    def __init__(self, model_key, **form_parameters):
+        super(UpdateNode, self).__init__(to_node_key(model_key), **form_parameters)
+
+
+class DeleteNode(DeleteCommand):
+    def __init__(self, *model_keys):
+        super(DeleteNode, self).__init__(*[to_node_key(m) for m in model_keys])
