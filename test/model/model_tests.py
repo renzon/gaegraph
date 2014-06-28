@@ -6,15 +6,20 @@ from google.appengine.ext import ndb
 from gaegraph import model
 from gaegraph.model import Node, Arc, destinations_cache_key
 from model.util import GAETestCase
+from mommygae import mommy
 
 
-class modelTests(GAETestCase):
+class ModelTests(GAETestCase):
     def test_to_node_key(self):
         node = Node(id=1)
         self.assertEqual(node.key, model.to_node_key(1))
         self.assertEqual(node.key, model.to_node_key("1"))
         self.assertEqual(node.key, model.to_node_key(node.key))
         self.assertEqual(node.key, model.to_node_key(node))
+
+    def test_query_by_creation(self):
+        nodes = [mommy.save_one(Node) for i in range(4)]
+        self.assertListEqual(nodes, Node.query_by_creation().fetch())
 
     def test_to_dict(self):
         class NodeMock(Node):
