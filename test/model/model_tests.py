@@ -21,6 +21,11 @@ class ModelTests(GAETestCase):
         nodes = [mommy.save_one(Node) for i in range(4)]
         self.assertListEqual(nodes, Node.query_by_creation().fetch())
 
+    def test_query_by_creation_desc(self):
+        nodes = [mommy.save_one(Node) for i in range(4)]
+        nodes.reverse()
+        self.assertListEqual(nodes, Node.query_by_creation_desc().fetch())
+
     def test_to_dict(self):
         class NodeMock(Node):
             attr = ndb.StringProperty()

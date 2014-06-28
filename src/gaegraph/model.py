@@ -5,14 +5,16 @@ from google.appengine.ext import ndb
 from google.appengine.ext.ndb.polymodel import PolyModel
 
 
-
-
 class Node(PolyModel):
     creation = ndb.DateTimeProperty(auto_now_add=True)
 
     @classmethod
     def query_by_creation(cls):
         return cls.query().order(cls.creation)
+
+    @classmethod
+    def query_by_creation_desc(cls):
+        return cls.query().order(-cls.creation)
 
     def to_dict(self, include=None, exclude=None):
         dct = super(Node, self).to_dict(include=include, exclude=exclude)
