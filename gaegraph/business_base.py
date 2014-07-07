@@ -95,11 +95,10 @@ class DeleteNode(DeleteCommand):
     def __init__(self, *model_keys):
         super(DeleteNode, self).__init__(*[to_node_key(m) for m in model_keys])
 
-
-class DeleteSingleDestinationArc(Command):
-    def __init__(self, arc_cls, origin):
-        super(DeleteSingleDestinationArc, self).__init__()
-        self._query = arc_cls.find_destinations(to_node_key(origin))
+class DeleteSingleArcBase(Command):
+    def __init__(self, query):
+        super(DeleteSingleArcBase, self).__init__()
+        self._query = query
         self._arc_search_future = None
         self._arc_delete_future = None
 
@@ -114,7 +113,13 @@ class DeleteSingleDestinationArc(Command):
     def commit(self):
         if self._arc_delete_future:
             self._arc_delete_future.get_result()
-        return super(DeleteSingleDestinationArc, self).commit()
+        return super(DeleteSingleArcBase, self).commit()
+
+
+class DeleteSingleDestinationArc(DeleteSingleArcBase):
+    def __init__(self, arc_cls, origin):
+        super(DeleteSingleDestinationArc, self).__init__(arc_cls.find_destinations(to_node_key(origin)))
+
 
 
 
