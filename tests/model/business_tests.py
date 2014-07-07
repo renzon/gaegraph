@@ -6,7 +6,7 @@ from google.appengine.ext import ndb
 
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearh, \
-    SingleOriginSearh, UpdateNode, DeleteNode
+    SingleOriginSearh, UpdateNode, DeleteNode, DeleteSingleDestinationArc
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key
 from model.util import GAETestCase
 from mommygae import mommy
@@ -109,3 +109,12 @@ class GaeBusinessCommandsShortcutsTests(GAETestCase):
         self.assertTupleEqual(node_keys, DeleteNode(*[k.id() for k in node_keys]).model_keys)
         self.assertTupleEqual(node_keys, DeleteNode(*[unicode(k.id()) for k in node_keys]).model_keys)
         self.assertTupleEqual(node_keys, DeleteNode(*nodes).model_keys)
+
+class DeleteArcTests(GAETestCase):
+    def test_delete_single_destination_arc(self):
+        origin=mommy.save_one(Node)
+        destination=mommy.save_one(Node)
+        arc=Arc(origin,destination)
+        arc.put()
+        DeleteSingleDestinationArc(Arc,origin)()
+        self.assertIsNone(arc.key.get())
