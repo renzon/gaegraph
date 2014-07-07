@@ -95,30 +95,46 @@ class DeleteNode(DeleteCommand):
     def __init__(self, *model_keys):
         super(DeleteNode, self).__init__(*[to_node_key(m) for m in model_keys])
 
-class DeleteSingleArcBase(Command):
-    def __init__(self, query):
-        super(DeleteSingleArcBase, self).__init__()
-        self._query = query
-        self._arc_search_future = None
-        self._arc_delete_future = None
+
+class GetArcs(Command):
+    def __init__(self, arc_class, origin=None, destination=None, keys_only=True):
+        if not (origin or destination):
+            raise Exception('at least one of origin and destination must be not None')
+        super(GetArcs, self).__init__()
+        self._keys_only = keys_only
+        if origin and destination:
+            self._query = arc_class.query_by_origin_and_destination(origin, destination)
+        elif origin:
+            self._query = arc_class.find_destinations(origin)
+        else:
+            self._query = arc_class.find_origins(destination)
+        self._future = None
 
     def set_up(self):
-        self._arc_search_future = self._query.get_async(keys_only=True)
+        self._future = self._query.fetch_async(keys_only=self._keys_only)
 
     def do_business(self):
-        arc_key = self._arc_search_future.get_result()
-        if arc_key:
-            self._arc_delete_future = arc_key.delete_async()
-
-    def commit(self):
-        if self._arc_delete_future:
-            self._arc_delete_future.get_result()
-        return super(DeleteSingleArcBase, self).commit()
+        self.result = self._future.get_result()
 
 
-class DeleteSingleDestinationArc(DeleteSingleArcBase):
-    def __init__(self, arc_cls, origin):
-        super(DeleteSingleDestinationArc, self).__init__(arc_cls.find_destinations(to_node_key(origin)))
+class DeleteArcs(GetArcs):
+    def __init__(self, arc_class, origin=None, destination=None):
+        super(DeleteArcs, self).__init__(arc_class, origin, destination, True)
+        self._arc_delete_future = None
+        self._cache_keys = []
+        if origin:
+            self._cache_keys.append(destinations_cache_key(arc_class, origin))
+        if destination:
+            self._cache_keys.append(origins_cache_key(arc_class, destination))
+
+    def do_business(self):
+        super(DeleteArcs, self).do_business()
+        if self.result:
+            ndb.delete_multi(self.result)
+            memcache.delete_multi(self._cache_keys)
+
+
+
 
 
 

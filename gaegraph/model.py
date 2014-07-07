@@ -56,6 +56,12 @@ class Arc(PolyModel):
         return cls.query(cls.origin == node).order(cls.default_order())
 
     @classmethod
+    def query_by_origin_and_destination(cls, origin, destination):
+        origin = to_node_key(origin)
+        destination = to_node_key(destination)
+        return cls.query(cls.origin == origin, cls.destination == destination).order(cls.default_order())
+
+    @classmethod
     def find_origins(cls, node):
         node = to_node_key(node)
         return cls.query(cls.destination == node).order(cls.default_order())

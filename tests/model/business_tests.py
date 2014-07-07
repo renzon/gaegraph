@@ -6,7 +6,7 @@ from google.appengine.ext import ndb
 
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearh, \
-    SingleOriginSearh, UpdateNode, DeleteNode, DeleteSingleDestinationArc
+    SingleOriginSearh, UpdateNode, DeleteNode, DeleteArcs, GetArcs
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key
 from model.util import GAETestCase
 from mommygae import mommy
@@ -110,11 +110,64 @@ class GaeBusinessCommandsShortcutsTests(GAETestCase):
         self.assertTupleEqual(node_keys, DeleteNode(*[unicode(k.id()) for k in node_keys]).model_keys)
         self.assertTupleEqual(node_keys, DeleteNode(*nodes).model_keys)
 
+
+class GetArcsTests(GAETestCase):
+    def test_init_error(self):
+        self.assertRaises(Exception, GetArcs, Arc)
+
+
 class DeleteArcTests(GAETestCase):
-    def test_delete_single_destination_arc(self):
-        origin=mommy.save_one(Node)
-        destination=mommy.save_one(Node)
-        arc=Arc(origin,destination)
-        arc.put()
-        DeleteSingleDestinationArc(Arc,origin)()
-        self.assertIsNone(arc.key.get())
+    def test_delete_destination_arcs(self):
+        self.maxDiff = None
+        origin = mommy.save_one(Node)
+        destinations = [mommy.save_one(Node) for i in range(5)]
+        arcs = [Arc(origin, d) for d in destinations]
+        for a in arcs:
+            a.put()
+        # using search to test cache
+        destination_search_cmd = DestinationsSearch(Arc, origin)
+        self.assertListEqual(destinations, destination_search_cmd())
+        single_origin_search = SingleOriginSearh(Arc, destinations[-1])
+        self.assertEqual(origin, single_origin_search())
+        DeleteArcs(Arc, origin, destinations[-1])()
+
+        destination_search_cmd = DestinationsSearch(Arc, origin)
+        self.assertListEqual(destinations[:-1], destination_search_cmd())
+        single_origin_search = SingleOriginSearh(Arc, destinations[-1])
+        self.assertIsNone(single_origin_search())
+
+        DeleteArcs(Arc, origin)()
+
+        destination_search_cmd = DestinationsSearch(Arc, origin)
+        self.assertListEqual([], destination_search_cmd())
+        single_origin_search = SingleOriginSearh(Arc, destinations[-1])
+        self.assertIsNone(single_origin_search())
+
+    def test_delete_origin_arcs(self):
+        self.maxDiff = None
+        destination = mommy.save_one(Node)
+        origins = [mommy.save_one(Node) for i in range(5)]
+        arcs = [Arc(o, destination) for o in origins]
+        for a in arcs:
+            a.put()
+        # using search to test cache
+        origin_search_cmd = OriginsSearch(Arc, destination)
+        self.assertListEqual(origins, origin_search_cmd())
+        single_destination_search = SingleDestinationSearh(Arc, origins[-1])
+        self.assertEqual(destination, single_destination_search())
+        DeleteArcs(Arc, origins[-1], destination)()
+
+        origin_search_cmd = OriginsSearch(Arc, destination)
+        self.assertListEqual(origins[:-1], origin_search_cmd())
+        single_destination_search = SingleDestinationSearh(Arc, origins[-1])
+        self.assertIsNone(single_destination_search())
+
+        DeleteArcs(Arc, destination=destination)()
+
+        origin_search_cmd = OriginsSearch(Arc, destination)
+        self.assertListEqual([], origin_search_cmd())
+        single_destination_search = SingleDestinationSearh(Arc, origins[-1])
+        self.assertIsNone(single_destination_search())
+
+
+
