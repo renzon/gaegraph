@@ -96,11 +96,11 @@ class DeleteNode(DeleteCommand):
         super(DeleteNode, self).__init__(*[to_node_key(m) for m in model_keys])
 
 
-class GetArcs(Command):
+class SearchArcs(Command):
     def __init__(self, arc_class, origin=None, destination=None, keys_only=True):
         if not (origin or destination):
             raise Exception('at least one of origin and destination must be not None')
-        super(GetArcs, self).__init__()
+        super(SearchArcs, self).__init__()
         self._keys_only = keys_only
         if origin and destination:
             self._query = arc_class.query_by_origin_and_destination(origin, destination)
@@ -117,7 +117,7 @@ class GetArcs(Command):
         self.result = self._future.get_result()
 
 
-class DeleteArcs(GetArcs):
+class DeleteArcs(SearchArcs):
     def __init__(self, arc_class, origin=None, destination=None):
         super(DeleteArcs, self).__init__(arc_class, origin, destination, True)
         self._arc_delete_future = None
