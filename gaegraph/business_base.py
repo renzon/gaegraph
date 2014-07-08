@@ -29,80 +29,11 @@ class NodeSearch(Command):
         self.result = self._future.get_result()
 
 
-class ArcSearchBase(Command):
-    def __init__(self, arc_cls, node, cache_key_fcn, arc_property, error_key, query):
-        super(ArcSearchBase, self).__init__()
-        self._cache_key = cache_key_fcn(arc_cls, node)
-        self.node = node
-        self.arc_cls = arc_cls
-        self._nodes_cached_keys = None
-        self._arc_property = arc_property
-        self.result = []
-        self._error_key = error_key
-        self._query = query
-
-    def set_up(self):
-        try:
-            self._nodes_cached_keys = memcache.get(self._cache_key)
-        except Exception:
-            # If memcache fails, do nothing
-            pass
-        try:
-            if not self._nodes_cached_keys:
-                query = self._query(self.node)
-                self._future = query.fetch_async()
-        except ValueError:
-            self.add_error(self._error_key, LONG_ERROR)
-
-    def do_business(self):
-        cached_keys = self._nodes_cached_keys
-        if not cached_keys:
-            cached_keys = [getattr(arc, self._arc_property) for arc in self._future.get_result()]
-            if cached_keys:
-                memcache.set(self._cache_key, cached_keys)
-        if cached_keys:
-            self.result = ndb.get_multi(cached_keys)
-
-
-class DestinationsSearch(ArcSearchBase):
-    def __init__(self, arc_cls, origin):
-        super(DestinationsSearch, self).__init__(arc_cls, origin, destinations_cache_key, 'destination', 'origin',
-                                                 arc_cls.find_destinations)
-
-
-class SingleDestinationSearch(DestinationsSearch):
-    def do_business(self):
-        DestinationsSearch.do_business(self)
-        self.result = self.result[0] if self.result else None
-
-
-class OriginsSearch(ArcSearchBase):
-    def __init__(self, arc_cls, destination):
-        super(OriginsSearch, self).__init__(arc_cls, destination, origins_cache_key, 'origin', 'destination',
-                                            arc_cls.find_origins)
-
-
-class SingleOriginSearh(OriginsSearch):
-    def do_business(self):
-        OriginsSearch.do_business(self)
-        self.result = self.result[0] if self.result else None
-
-
-class UpdateNode(UpdateCommand):
-    def __init__(self, model_key, **form_parameters):
-        super(UpdateNode, self).__init__(to_node_key(model_key), **form_parameters)
-
-
-class DeleteNode(DeleteCommand):
-    def __init__(self, *model_keys):
-        super(DeleteNode, self).__init__(*[to_node_key(m) for m in model_keys])
-
-
-class SearchArcs(Command):
+class ArcSearch(Command):
     def __init__(self, arc_class, origin=None, destination=None, keys_only=True):
         if not (origin or destination):
             raise Exception('at least one of origin and destination must be not None')
-        super(SearchArcs, self).__init__()
+        super(ArcSearch, self).__init__()
         self._keys_only = keys_only
         if origin and destination:
             self._query = arc_class.query_by_origin_and_destination(origin, destination)
@@ -119,7 +50,75 @@ class SearchArcs(Command):
         self.result = self._future.get_result()
 
 
-class DeleteArcs(SearchArcs):
+class ArcNodeSearchBase(ArcSearch):
+    def __init__(self, arc_class, origin=None, destination=None):
+        super(ArcNodeSearchBase, self).__init__(arc_class, origin, destination, False)
+        if origin and destination:
+            raise Exception('only one of origin or destination can be not None')
+        elif origin:
+            self._cache_key = destinations_cache_key(arc_class, origin)
+            self._arc_property = 'destination'
+        else:
+            self._arc_property = 'origin'
+            self._cache_key = origins_cache_key(arc_class, destination)
+        self._node_cached_keys = None
+
+    def set_up(self):
+        try:
+            self._node_cached_keys = memcache.get(self._cache_key)
+        except:
+            pass  # If memcache fails, do nothing
+        if not self._node_cached_keys:
+            super(ArcNodeSearchBase, self).set_up()
+
+    def do_business(self):
+        cached_keys = self._node_cached_keys
+        if not cached_keys:
+            super(ArcNodeSearchBase, self).do_business()
+            cached_keys = [getattr(arc, self._arc_property) for arc in self.result]
+            self.result = []
+            if cached_keys:
+                try:
+                    memcache.set(self._cache_key, cached_keys)
+                except:
+                    pass  # If memcache fails, do nothing
+        if cached_keys:
+            self.result = ndb.get_multi(cached_keys)
+
+
+class DestinationsSearch(ArcNodeSearchBase):
+    def __init__(self, arc_class, origin):
+        super(DestinationsSearch, self).__init__(arc_class, origin)
+
+
+class SingleDestinationSearch(DestinationsSearch):
+    def do_business(self):
+        DestinationsSearch.do_business(self)
+        self.result = self.result[0] if self.result else None
+
+
+class OriginsSearch(ArcNodeSearchBase):
+    def __init__(self, arc_class, destination):
+        super(OriginsSearch, self).__init__(arc_class, destination=destination)
+
+
+class SingleOriginSearch(OriginsSearch):
+    def do_business(self):
+        OriginsSearch.do_business(self)
+        self.result = self.result[0] if self.result else None
+
+
+class UpdateNode(UpdateCommand):
+    def __init__(self, model_key, **form_parameters):
+        super(UpdateNode, self).__init__(to_node_key(model_key), **form_parameters)
+
+
+class DeleteNode(DeleteCommand):
+    def __init__(self, *model_keys):
+        super(DeleteNode, self).__init__(*[to_node_key(m) for m in model_keys])
+
+
+class DeleteArcs(ArcSearch):
     def __init__(self, arc_class, origin=None, destination=None):
         super(DeleteArcs, self).__init__(arc_class, origin, destination, True)
         self._arc_delete_future = None

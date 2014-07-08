@@ -6,7 +6,7 @@ from google.appengine.ext import ndb
 
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
-    SingleOriginSearh, UpdateNode, DeleteNode, DeleteArcs, SearchArcs
+    SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key
 from model.util import GAETestCase
 from mommygae import mommy
@@ -73,10 +73,11 @@ class ArcSearchTests(GAETestCase):
         destination = Node()
         origin = Node()
         ndb.put_multi([destination, origin])
-        search = SingleOriginSearh(Arc, destination).execute()
+        search = SingleOriginSearch(Arc, destination).execute()
         self.assertIsNone(search.result)
         Arc(origin=origin, destination=destination).put()
-        search = SingleOriginSearh(Arc, destination).execute()
+        search = SingleOriginSearch(Arc, destination)
+        search()
         self.assertEqual(origin.key, search.result.key)
 
 
@@ -113,7 +114,7 @@ class GaeBusinessCommandsShortcutsTests(GAETestCase):
 
 class SeachArcsTests(GAETestCase):
     def test_init_error(self):
-        self.assertRaises(Exception, SearchArcs, Arc)
+        self.assertRaises(Exception, ArcSearch, Arc)
 
 
 class DeleteArcTests(GAETestCase):
@@ -127,20 +128,20 @@ class DeleteArcTests(GAETestCase):
         # using search to test cache
         destination_search_cmd = DestinationsSearch(Arc, origin)
         self.assertListEqual(destinations, destination_search_cmd())
-        single_origin_search = SingleOriginSearh(Arc, destinations[-1])
+        single_origin_search = SingleOriginSearch(Arc, destinations[-1])
         self.assertEqual(origin, single_origin_search())
         DeleteArcs(Arc, origin, destinations[-1])()
 
         destination_search_cmd = DestinationsSearch(Arc, origin)
         self.assertListEqual(destinations[:-1], destination_search_cmd())
-        single_origin_search = SingleOriginSearh(Arc, destinations[-1])
+        single_origin_search = SingleOriginSearch(Arc, destinations[-1])
         self.assertIsNone(single_origin_search())
 
         DeleteArcs(Arc, origin)()
 
         destination_search_cmd = DestinationsSearch(Arc, origin)
         self.assertListEqual([], destination_search_cmd())
-        single_origin_search = SingleOriginSearh(Arc, destinations[-1])
+        single_origin_search = SingleOriginSearch(Arc, destinations[-1])
         self.assertIsNone(single_origin_search())
 
     def test_delete_origin_arcs(self):
