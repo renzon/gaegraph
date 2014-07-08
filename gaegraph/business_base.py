@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
+
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
+
 from gaebusiness.business import Command
 from gaebusiness.gaeutil import UpdateCommand, DeleteCommand
-from gaegraph.model import Node, destinations_cache_key, origins_cache_key, to_node_key
+from gaegraph.model import destinations_cache_key, origins_cache_key, to_node_key
 
 LONG_ERROR = "LONG_ERROR"
 
 
 class NodeSearch(Command):
-    '''
-    Usecase for search a result by its id
-    '''
+    """
+    Command for search node by its id
+    """
 
     def __init__(self, node_or_key_or_id):
         super(NodeSearch, self).__init__()
@@ -23,7 +25,7 @@ class NodeSearch(Command):
     def set_up(self):
         self._future = self.node_key.get_async()
 
-    def do_business(self, stop_on_error=False):
+    def do_business(self):
         self.result = self._future.get_result()
 
 
@@ -52,7 +54,7 @@ class ArcSearchBase(Command):
         except ValueError:
             self.add_error(self._error_key, LONG_ERROR)
 
-    def do_business(self, stop_on_error=False):
+    def do_business(self):
         cached_keys = self._nodes_cached_keys
         if not cached_keys:
             cached_keys = [getattr(arc, self._arc_property) for arc in self._future.get_result()]
@@ -63,26 +65,26 @@ class ArcSearchBase(Command):
 
 
 class DestinationsSearch(ArcSearchBase):
-    def __init__(self, arc_cls, origin, **kwargs):
+    def __init__(self, arc_cls, origin):
         super(DestinationsSearch, self).__init__(arc_cls, origin, destinations_cache_key, 'destination', 'origin',
-                                                 arc_cls.find_destinations, **kwargs)
+                                                 arc_cls.find_destinations)
 
 
-class SingleDestinationSearh(DestinationsSearch):
-    def do_business(self, stop_on_error=False):
-        DestinationsSearch.do_business(self, stop_on_error)
+class SingleDestinationSearch(DestinationsSearch):
+    def do_business(self):
+        DestinationsSearch.do_business(self)
         self.result = self.result[0] if self.result else None
 
 
 class OriginsSearch(ArcSearchBase):
-    def __init__(self, arc_cls, destination, **kwargs):
+    def __init__(self, arc_cls, destination):
         super(OriginsSearch, self).__init__(arc_cls, destination, origins_cache_key, 'origin', 'destination',
-                                            arc_cls.find_origins, **kwargs)
+                                            arc_cls.find_origins)
 
 
 class SingleOriginSearh(OriginsSearch):
-    def do_business(self, stop_on_error=False):
-        OriginsSearch.do_business(self, stop_on_error)
+    def do_business(self):
+        OriginsSearch.do_business(self)
         self.result = self.result[0] if self.result else None
 
 

@@ -5,7 +5,7 @@ from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
 from gaeforms.ndb.form import ModelForm
-from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearh, \
+from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
     SingleOriginSearh, UpdateNode, DeleteNode, DeleteArcs, SearchArcs
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key
 from model.util import GAETestCase
@@ -63,10 +63,10 @@ class ArcSearchTests(GAETestCase):
         destination = Node()
         origin = Node()
         ndb.put_multi([destination, origin])
-        search = SingleDestinationSearh(Arc, origin).execute()
+        search = SingleDestinationSearch(Arc, origin).execute()
         self.assertIsNone(search.result)
         Arc(origin=origin, destination=destination).put()
-        search = SingleDestinationSearh(Arc, origin).execute()
+        search = SingleDestinationSearch(Arc, origin).execute()
         self.assertEqual(destination.key, search.result.key)
 
     def test_single_origin_search(self):
@@ -153,20 +153,20 @@ class DeleteArcTests(GAETestCase):
         # using search to test cache
         origin_search_cmd = OriginsSearch(Arc, destination)
         self.assertListEqual(origins, origin_search_cmd())
-        single_destination_search = SingleDestinationSearh(Arc, origins[-1])
+        single_destination_search = SingleDestinationSearch(Arc, origins[-1])
         self.assertEqual(destination, single_destination_search())
         DeleteArcs(Arc, origins[-1], destination)()
 
         origin_search_cmd = OriginsSearch(Arc, destination)
         self.assertListEqual(origins[:-1], origin_search_cmd())
-        single_destination_search = SingleDestinationSearh(Arc, origins[-1])
+        single_destination_search = SingleDestinationSearch(Arc, origins[-1])
         self.assertIsNone(single_destination_search())
 
         DeleteArcs(Arc, destination=destination)()
 
         origin_search_cmd = OriginsSearch(Arc, destination)
         self.assertListEqual([], origin_search_cmd())
-        single_destination_search = SingleDestinationSearh(Arc, origins[-1])
+        single_destination_search = SingleDestinationSearch(Arc, origins[-1])
         self.assertIsNone(single_destination_search())
 
 
