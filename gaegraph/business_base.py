@@ -58,11 +58,15 @@ class CreateArc(CommandSequential):
         pass
 
     def _to_command(self, node_or_command):
-        if isinstance(node_or_command, Node):
-            cmd = Command()
-            cmd.result = node_or_command
-            node_or_command = cmd
-        return node_or_command
+        if isinstance(node_or_command, Command):
+            return node_or_command
+        cmd = Command()
+        try:
+            node_key = to_node_key(node_or_command)
+            cmd.result = node_key
+        except:
+            cmd.add_error('node', 'Invalid Node')
+        return cmd
 
 
 class CreateSingleArc(CreateArc):

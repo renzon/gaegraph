@@ -8,7 +8,7 @@ from gaebusiness.business import CommandExecutionException
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
     SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch, CreateArc, CreateSingleArc
-from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key
+from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key, to_node_key
 from model.util import GAETestCase
 from mommygae import mommy
 
@@ -182,8 +182,18 @@ class CreateArcClass(GAETestCase):
     def test_create_arc_with_id(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
-        cmd = CreateArc(Arc, origin, str(destination.key.id))
+        cmd = CreateArc(Arc, origin, str(destination.key.id()))
         self.assert_arc_creation(cmd, origin, destination)
+
+    def test_create_arc_with_none(self):
+        origin = mommy.save_one(Node)
+        cmd = CreateArc(Arc, origin, None)
+        self.assertRaises(CommandExecutionException, cmd)
+
+    def test_create_arc_with_invalid_id(self):
+        origin = mommy.save_one(Node)
+        cmd = CreateArc(Arc, origin, '')
+        self.assertRaises(CommandExecutionException, cmd)
 
     def test_create_arc_with_key(self):
         destination = mommy.save_one(Node)
@@ -223,10 +233,10 @@ class CreateArcClass(GAETestCase):
 
     def assert_arc_creation(self, cmd, origin, destination):
         created_arc = cmd()
-        self.assertEqual(origin, cmd.origin)
-        self.assertEqual(destination, cmd.destination)
+        self.assertEqual(to_node_key(origin), to_node_key(cmd.origin))
+        self.assertEqual(to_node_key(destination), to_node_key(cmd.destination))
         arc = Arc.query().order(-Arc.creation).get()
         self.assertEqual(arc, created_arc)
-        self.assertEqual(origin.key, arc.origin)
-        self.assertEqual(destination.key, arc.destination)
+        self.assertEqual(to_node_key(origin), to_node_key(arc.origin))
+        self.assertEqual(to_node_key(destination), to_node_key(arc.destination))
 
