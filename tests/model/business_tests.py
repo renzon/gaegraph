@@ -3,10 +3,11 @@ from __future__ import absolute_import, unicode_literals
 
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
+from gaebusiness.business import CommandExecutionException
 
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
-    SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch
+    SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch, CreateArc, CreateSingleArc
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key
 from model.util import GAETestCase
 from mommygae import mommy
@@ -171,4 +172,49 @@ class DeleteArcTests(GAETestCase):
         self.assertIsNone(single_destination_search())
 
 
+class CreateArcClass(GAETestCase):
+    def test_create_arc_with_nodes(self):
+        destination = mommy.save_one(Node)
+        origin = mommy.save_one(Node)
+        cmd = CreateArc(Arc, origin, destination)
+        self.assert_arc_creation(cmd, origin, destination)
+
+    def test_create_arc_with_commands(self):
+        destination = mommy.save_one(Node)
+        origin = mommy.save_one(Node)
+
+        cmd = CreateArc(Arc, NodeSearch(origin), destination)
+        self.assert_arc_creation(cmd, origin, destination)
+
+        cmd = CreateArc(Arc, origin, NodeSearch(destination))
+        self.assert_arc_creation(cmd, origin, destination)
+
+        cmd = CreateArc(Arc, NodeSearch(origin), NodeSearch(destination))
+        self.assert_arc_creation(cmd, origin, destination)
+
+    def test_create_single_arc(self):
+        destination = mommy.save_one(Node)
+        origin = mommy.save_one(Node)
+        cmd = CreateSingleArc(Arc, origin, destination)
+        self.assert_arc_creation(cmd, origin, destination)
+
+
+    def test_create_single_arc_for_second_time_error(self):
+        destination = mommy.save_one(Node)
+        origin = mommy.save_one(Node)
+        cmd = CreateSingleArc(Arc, origin, destination)
+        self.assert_arc_creation(cmd, origin, destination)
+
+        cmd = CreateSingleArc(Arc, origin, destination)
+        self.assertRaises(CommandExecutionException, cmd)
+
+
+    def assert_arc_creation(self, cmd, origin, destination):
+        created_arc = cmd()
+        self.assertEqual(origin, cmd.origin)
+        self.assertEqual(destination, cmd.destination)
+        arc = Arc.query().order(-Arc.creation).get()
+        self.assertEqual(arc, created_arc)
+        self.assertEqual(origin.key, arc.origin)
+        self.assertEqual(destination.key, arc.destination)
 

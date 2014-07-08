@@ -4,9 +4,9 @@ from __future__ import absolute_import, unicode_literals
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
-from gaebusiness.business import Command
+from gaebusiness.business import Command, CommandSequential, CommandExecutionException, CommandParallel
 from gaebusiness.gaeutil import UpdateCommand, DeleteCommand
-from gaegraph.model import destinations_cache_key, origins_cache_key, to_node_key
+from gaegraph.model import destinations_cache_key, origins_cache_key, to_node_key, Node
 
 LONG_ERROR = "LONG_ERROR"
 
@@ -27,6 +27,49 @@ class NodeSearch(Command):
 
     def do_business(self):
         self.result = self._future.get_result()
+
+
+class CreateArc(CommandSequential):
+    def __init__(self, arc_class, origin, destination):
+        self.origin = None
+        self.destination = None
+        self.arc_class = arc_class
+        self._command_parallel = CommandParallel(self._to_command(origin), self._to_command(destination))
+        super(CreateArc, self).__init__(self._command_parallel)
+
+    def _extract_and_validate_nodes(self):
+        self.origin = self._command_parallel[0].result
+        self.destination = self._command_parallel[1].result
+        if self.origin is None or self.destination is None:
+            self.add_error('node_error', 'origin and destination must not be None')
+
+    def do_business(self):
+        super(CreateArc, self).do_business()
+        self._extract_and_validate_nodes()
+        self._validate()
+        if self.errors:
+            raise CommandExecutionException(unicode(self.errors))
+        else:
+            self._to_commit = self.arc_class(self.origin, self.destination)
+            self.result = self._to_commit
+
+
+    def _validate(self):
+        pass
+
+    def _to_command(self, node_or_command):
+        if isinstance(node_or_command, Node):
+            cmd = Command()
+            cmd.result = node_or_command
+            node_or_command = cmd
+        return node_or_command
+
+
+class CreateSingleArc(CreateArc):
+    def _validate(self):
+        self.result = ArcSearch(self.arc_class, self.origin, self.destination)()
+        if self.result:
+            self.add_error('nodes_error', 'The is already an Arc %s for those nodes' % self.result)
 
 
 class ArcSearch(Command):

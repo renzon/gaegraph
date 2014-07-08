@@ -1,10 +1,9 @@
+import sys
+from distutils.util import convert_path
+
 import codecs
 import os
-import sys
-
-from distutils.util import convert_path
 from fnmatch import fnmatchcase
-from setup import install_requires
 from setuptools import setup, find_packages
 
 
