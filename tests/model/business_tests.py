@@ -179,6 +179,18 @@ class CreateArcClass(GAETestCase):
         cmd = CreateArc(Arc, origin, destination)
         self.assert_arc_creation(cmd, origin, destination)
 
+    def test_create_arc_with_id(self):
+        destination = mommy.save_one(Node)
+        origin = mommy.save_one(Node)
+        cmd = CreateArc(Arc, origin, str(destination.key.id))
+        self.assert_arc_creation(cmd, origin, destination)
+
+    def test_create_arc_with_key(self):
+        destination = mommy.save_one(Node)
+        origin = mommy.save_one(Node)
+        cmd = CreateArc(Arc, origin, destination.key)
+        self.assert_arc_creation(cmd, origin, destination)
+
     def test_create_arc_with_commands(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
