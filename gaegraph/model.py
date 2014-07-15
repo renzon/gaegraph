@@ -17,11 +17,15 @@ class Node(PolyModel):
         return cls.query().order(-cls.creation)
 
     def to_dict(self, include=None, exclude=None):
+        if include is None or 'class_' not in include:
+            exclude = exclude or []
+            exclude.append('class_')
+
         dct = super(Node, self).to_dict(include=include, exclude=exclude)
         if include:
-            if 'id' in include:
+            if 'id' in include and self.key:
                 dct['id'] = str(self.key.id())
-        elif exclude is None or 'id' not in exclude:
+        elif (exclude is None or 'id' not in exclude) and self.key:
             dct['id'] = str(self.key.id())
         return dct
 

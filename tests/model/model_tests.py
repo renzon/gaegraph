@@ -34,22 +34,29 @@ class ModelTests(GAETestCase):
         node.put()
         # to_dict without arguments
         dct = node.to_dict()
-        self.assertEqual(4, len(dct))
+        self.assertEqual(3, len(dct))
         self.assertEqual('1', dct['id'])
         self.assertEqual('foo', dct['attr'])
         self.assertIsNotNone(dct['creation'])
 
         # with exclude arguments
-        dct = node.to_dict(exclude=('creation', 'class_'))
+        dct = node.to_dict(exclude=['creation', 'class_'])
         self.assertDictEqual({'id': '1', 'attr': 'foo'}, dct)
-        dct = node.to_dict(exclude=('creation', 'class_', 'id'))
+        dct = node.to_dict(exclude=['creation', 'class_', 'id'])
         self.assertDictEqual({'attr': 'foo'}, dct)
 
         # with exclude arguments
-        dct = node.to_dict(include=('id', 'attr'))
+        dct = node.to_dict(include=['id', 'attr'])
         self.assertDictEqual({'id': '1', 'attr': 'foo'}, dct)
-        dct = node.to_dict(include=('attr',))
+        dct = node.to_dict(include=['attr'])
         self.assertDictEqual({'attr': 'foo'}, dct)
+
+    def test_to_dict_of_not_saved_node(self):
+        node = Node()
+        self.assertItemsEqual(['creation'], node.to_dict().keys())
+        self.assertItemsEqual(['creation'], node.to_dict(include=['id', 'creation']).keys())
+        self.assertItemsEqual(['class_'], node.to_dict(include=['class_']).keys())
+        self.assertItemsEqual([], node.to_dict(exclude=['creation']).keys())
 
 
 class ArcTests(GAETestCase):
