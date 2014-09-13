@@ -138,12 +138,24 @@ class DeleteArcTests(GAETestCase):
         single_origin_search = SingleOriginSearch(Arc, destinations[-1])
         self.assertIsNone(single_origin_search())
 
+        single_origin_search = SingleOriginSearch(Arc, destinations[1])
+        self.assertEqual(origin, single_origin_search())
+
+        origins_search = OriginsSearch(Arc, destinations[1])
+        self.assertListEqual([origin], origins_search())
+
         DeleteArcs(Arc, origin)()
 
         destination_search_cmd = DestinationsSearch(Arc, origin)
         self.assertListEqual([], destination_search_cmd())
         single_origin_search = SingleOriginSearch(Arc, destinations[-1])
         self.assertIsNone(single_origin_search())
+        single_origin_search = SingleOriginSearch(Arc, destinations[1])
+        self.assertIsNone(single_origin_search())
+
+        origins_search = OriginsSearch(Arc, destinations[1])
+        self.assertListEqual([], origins_search())
+
 
     def test_delete_origin_arcs(self):
         self.maxDiff = None
@@ -164,12 +176,23 @@ class DeleteArcTests(GAETestCase):
         single_destination_search = SingleDestinationSearch(Arc, origins[-1])
         self.assertIsNone(single_destination_search())
 
+        single_destination_search = SingleDestinationSearch(Arc, origins[1])
+        self.assertEqual(destination, single_destination_search())
+        destinations_search = DestinationsSearch(Arc, origins[1])
+        self.assertListEqual([destination], destinations_search())
+
         DeleteArcs(Arc, destination=destination)()
 
         origin_search_cmd = OriginsSearch(Arc, destination)
         self.assertListEqual([], origin_search_cmd())
         single_destination_search = SingleDestinationSearch(Arc, origins[-1])
         self.assertIsNone(single_destination_search())
+
+        single_destination_search = SingleDestinationSearch(Arc, origins[1])
+        self.assertIsNone(single_destination_search())
+
+        destinations_search = DestinationsSearch(Arc, origins[1])
+        self.assertListEqual([], destinations_search())
 
 
 class CreateArcClass(GAETestCase):
