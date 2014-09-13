@@ -131,6 +131,7 @@ class ArcNodeSearchBase(ArcSearch):
                     pass  # If memcache fails, do nothing
         if cached_keys:
             self.result = ndb.get_multi(cached_keys)
+        self.result = [e for e in self.result if e]
 
 
 class DestinationsSearch(ArcNodeSearchBase):
@@ -167,19 +168,31 @@ class DeleteNode(DeleteCommand):
 
 class DeleteArcs(ArcSearch):
     def __init__(self, arc_class, origin=None, destination=None):
-        super(DeleteArcs, self).__init__(arc_class, origin, destination, True)
+        super(DeleteArcs, self).__init__(arc_class, origin, destination, False)
+        self.__destination = destination
+        self.__arc_class = arc_class
+        self.__origin = origin
         self._arc_delete_future = None
-        self._cache_keys = []
-        if origin:
-            self._cache_keys.append(destinations_cache_key(arc_class, origin))
-        if destination:
-            self._cache_keys.append(origins_cache_key(arc_class, destination))
 
     def do_business(self):
         super(DeleteArcs, self).do_business()
+
         if self.result:
-            ndb.delete_multi(self.result)
-            memcache.delete_multi(self._cache_keys)
+            futures = ndb.delete_multi_async([arc.key for arc in self.result])
+            cache_keys = []
+            if self.__origin:
+                cache_keys.append(destinations_cache_key(self.__arc_class, self.__origin))
+            else:
+                for arc in self.result:
+                    cache_keys.append(destinations_cache_key(self.__arc_class, arc.origin))
+
+            if self.__destination:
+                cache_keys.append(origins_cache_key(self.__arc_class, self.__destination))
+            else:
+                for arc in self.result:
+                    cache_keys.append(origins_cache_key(self.__arc_class, arc.destination))
+            memcache.delete_multi(cache_keys)
+            [f.get_result() for f in futures]
 
 
 

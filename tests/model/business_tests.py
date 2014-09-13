@@ -181,6 +181,7 @@ class DeleteArcTests(GAETestCase):
         destinations_search = DestinationsSearch(Arc, origins[1])
         self.assertListEqual([destination], destinations_search())
 
+        # erasing all arcs poiting to destination
         DeleteArcs(Arc, destination=destination)()
 
         origin_search_cmd = OriginsSearch(Arc, destination)
