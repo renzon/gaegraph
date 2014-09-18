@@ -30,16 +30,21 @@ class NodeSearch(Command):
 
 
 class CreateArc(CommandSequential):
-    def __init__(self, arc_class, origin, destination):
+    def __init__(self, arc_class, origin=None, destination=None):
+
+        # this values will be set latter on _extract_and_validate or handle_previous
         self.origin = None
         self.destination = None
+
         self.arc_class = arc_class
         self._command_parallel = CommandParallel(self._to_command(origin), self._to_command(destination))
         super(CreateArc, self).__init__(self._command_parallel)
 
     def _extract_and_validate_nodes(self):
-        self.origin = self._command_parallel[0].result
-        self.destination = self._command_parallel[1].result
+        if self.origin is None:
+            self.origin = self._command_parallel[0].result
+        if self.destination is None:
+            self.destination = self._command_parallel[1].result
         if self.origin is None or self.destination is None:
             self.add_error('node_error', 'origin and destination must not be None')
 
@@ -65,7 +70,7 @@ class CreateArc(CommandSequential):
             node_key = to_node_key(node_or_command)
             cmd.result = node_key
         except:
-            cmd.add_error('node', 'Invalid Node')
+            pass
         return cmd
 
 

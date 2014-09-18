@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-from gaebusiness.business import CommandExecutionException
+from gaebusiness.business import CommandExecutionException, Command, CommandSequential
 
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
@@ -196,7 +196,7 @@ class DeleteArcTests(GAETestCase):
         self.assertListEqual([], destinations_search())
 
 
-class CreateArcClass(GAETestCase):
+class CreateArcTests(GAETestCase):
     def test_create_arc_with_nodes(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
@@ -254,6 +254,26 @@ class CreateArcClass(GAETestCase):
         cmd = CreateSingleArc(Arc, origin, destination)
         self.assertRaises(CommandExecutionException, cmd)
 
+    def test_sequential(self):
+        class SaveCmd(Command):
+            def do_business(self):
+                self._to_commit = Node()
+                self.result = self._to_commit
+
+        class CreateArcSequentially(CreateArc):
+            def __init__(self):
+                super(CreateArcSequentially, self).__init__(Arc, destination=Node().put())
+
+            def handle_previous(self, command):
+                self.origin = command.result
+
+        save_cmd = SaveCmd()
+
+        create_arc_sequentially = CreateArcSequentially()
+
+        cmd = CommandSequential(save_cmd, create_arc_sequentially)
+        cmd()
+        self.assert_arc_creation(create_arc_sequentially, save_cmd.result, create_arc_sequentially.destination)
 
     def assert_arc_creation(self, cmd, origin, destination):
         created_arc = cmd()
@@ -263,4 +283,5 @@ class CreateArcClass(GAETestCase):
         self.assertEqual(arc, created_arc)
         self.assertEqual(to_node_key(origin), to_node_key(arc.origin))
         self.assertEqual(to_node_key(destination), to_node_key(arc.destination))
+
 
