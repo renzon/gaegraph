@@ -31,8 +31,9 @@ class NodeSearch(Command):
 
 class CreateArc(CommandSequential):
     """
-    Command to create arc between origin and destination nodes
-    Usefull to create many to many relations between origins and destination
+    Command to create arc between origin and destination.
+
+    Useful to create many to many relations between origins and destination.
 
     See CreateSingleArc for one to many connections or CreateUniqueArc for one to one connections
     """
@@ -81,11 +82,105 @@ class CreateArc(CommandSequential):
         return cmd
 
 
+class CreateUniqueArc(Command):
+    """
+    Command to create Arc between origin and destination only if both nodes don't have any arc of type informed on
+    __init__.
+
+    Useful for create one to one associations between origin and destination
+    or one destination has many origins
+
+    See CreateArc for many to many connections or CreateSingleArc for one to many connections
+    """
+
+    def __init__(self, arc_class, origin=None, destination=None):
+        super(CreateUniqueArc, self).__init__()
+        self.destination = None
+        self._destination_cmd = destination
+        self.origin = None
+        self._origin_cmd = origin
+        self.arc_class = arc_class
+        self._origin_validation_cmd = None
+        self._destination_validation_cmd = None
+
+    def _extract_command(self, node, cmd_class):
+        key = None
+        try:
+            key = to_node_key(node)
+        except:
+            return None
+        return cmd_class(self.arc_class, key)
+
+    def set_up(self):
+        self._origin_validation_cmd = self._extract_command(self._origin_cmd, _OriginHasDestinationRaiseError)
+        self._destination_validation_cmd = self._extract_command(self._destination_cmd, _DestinationHasOriginRaiseError)
+
+        # execution origin
+        if self._origin_validation_cmd:
+            self._origin_validation_cmd.set_up()
+        else:
+            self._origin_cmd.set_up()
+        # execution destination
+        if self._destination_validation_cmd:
+            self._destination_validation_cmd.set_up()
+        else:
+            self._destination_cmd.set_up()
+
+    def do_business(self):
+        # execution origin
+        if not self._origin_validation_cmd:
+            self._origin_cmd.do_business()
+            result = self._origin_cmd.result
+            if result and result.key:
+                self._origin_validation_cmd = self._extract_command(to_node_key(result),
+                                                                    _OriginHasDestinationRaiseError)
+                self._origin_validation_cmd.set_up()
+        if self._origin_validation_cmd:
+            self._origin_validation_cmd.do_business()
+            self.errors.update(self._origin_validation_cmd.errors)
+            self.origin = self._origin_validation_cmd.result
+
+        if not self._destination_validation_cmd:
+            self._destination_cmd.do_business()
+            result = self._destination_cmd.result
+            if result and result.key:
+                self._destination_validation_cmd = self._extract_command(to_node_key(result),
+                                                                         _DestinationHasOriginRaiseError)
+                self._destination_validation_cmd.set_up()
+        if self._destination_validation_cmd:
+            self._destination_validation_cmd.do_business()
+            self.errors.update(self._destination_validation_cmd.errors)
+            self.destination = self._destination_validation_cmd.result
+
+
+    def commit(self):
+        if not self.errors:
+            if self.origin is None and self.destination is None:
+                ndb.put_multi([self._origin_cmd.commit(), self._destination_cmd.commit()])
+                self.origin = self._origin_cmd.result
+                self.destination = self._destination_cmd.result
+
+            elif self.origin is None:
+                ndb.put_multi([self._origin_cmd.commit()])
+                self.origin = self._origin_cmd.result
+
+            elif self.destination is None:
+                ndb.put_multi([self._destination_cmd.commit()])
+                self.destination = self._destination_cmd.result
+
+            cmd = CreateArc(self.arc_class, self.origin, self.destination)
+            cmd.set_up()
+            cmd.do_business()
+            return cmd.commit()
+
+
 class CreateSingleArc(CreateArc):
     """
-    Command to create Arc between origin and destination only if there is not one conecting them
-    Usefull for create one to many associations where one origins node has many destination
-    or one destination has many origins
+    Command to create Arc between origin and destination only if there is not one connecting them.
+
+    Useful for create one to many associations where one origins node has many destination
+    or one destination has many origins.
+
     See CreateArc for many to many connections or CreateUniqueArc for one to one connections
     """
 
@@ -97,19 +192,30 @@ class CreateSingleArc(CreateArc):
 
 class ArcSearch(Command):
     def __init__(self, arc_class, origin=None, destination=None, keys_only=True):
+        super(ArcSearch, self).__init__()
+        self.destination = destination
+        self.origin = origin
+        self.arc_class = arc_class
+        self._keys_only = keys_only
+        self._query = None
+        self._future = None
+
+    def _validate(self):
+        origin = self.origin
+        destination = self.destination
         if not (origin or destination):
             raise Exception('at least one of origin and destination must be not None')
         super(ArcSearch, self).__init__()
-        self._keys_only = keys_only
         if origin and destination:
-            self._query = arc_class.query_by_origin_and_destination(origin, destination)
+            self._query = self.arc_class.query_by_origin_and_destination(origin, destination)
         elif origin:
-            self._query = arc_class.find_destinations(origin)
+            self._query = self.arc_class.find_destinations(origin)
         else:
-            self._query = arc_class.find_origins(destination)
+            self._query = self.arc_class.find_origins(destination)
         self._future = None
 
     def set_up(self):
+        self._validate()
         self._future = self._query.fetch_async(keys_only=self._keys_only)
 
     def do_business(self):
@@ -122,11 +228,45 @@ class HasArcCommand(ArcSearch):
     If origin or destination is None, it is going to search for any Arc
     origin and destination can not be none at same time
     """
+
     def __init__(self, arc_class, origin=None, destination=None):
         super(HasArcCommand, self).__init__(arc_class, origin, destination, True)
 
     def set_up(self):
-        self._future = self._query.get_async(keys_only=self._keys_only)
+        self._validate()
+        self._future = self._query.get_async(keys_only=True)
+
+
+class _OriginHasDestinationRaiseError(HasArcCommand):
+    def __init__(self, arc_class, origin):
+        super(_OriginHasDestinationRaiseError, self).__init__(arc_class, origin, None)
+        self.origin = origin
+
+    def do_business(self):
+        super(_OriginHasDestinationRaiseError, self).do_business()
+        if self.result:
+            self.add_error('origin', 'Origin %s already has an Arc %s' % (self.origin, self.result))
+        else:
+            self.result = self.origin
+
+    def handle_previous(self, command):
+        self.origin = command.result
+
+
+class _DestinationHasOriginRaiseError(HasArcCommand):
+    def __init__(self, arc_class, destination):
+        super(_DestinationHasOriginRaiseError, self).__init__(arc_class, None, destination)
+        self.destination = destination
+
+    def do_business(self):
+        super(_DestinationHasOriginRaiseError, self).do_business()
+        if self.result:
+            self.add_error('destination', 'Destination %s already has an Arc %s' % (self.destination, self.result))
+        else:
+            self.result = self.destination
+
+    def handle_previous(self, command):
+        self.destination = command.result
 
 
 class ArcNodeSearchBase(ArcSearch):

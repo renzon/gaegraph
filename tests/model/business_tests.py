@@ -7,7 +7,8 @@ from gaebusiness.business import CommandExecutionException, Command, CommandSequ
 
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
-    SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch, CreateArc, CreateSingleArc, HasArcCommand
+    SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch, CreateArc, CreateSingleArc, HasArcCommand, \
+    CreateUniqueArc
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key, to_node_key
 from model.util import GAETestCase
 from mommygae import mommy
@@ -114,8 +115,8 @@ class GaeBusinessCommandsShortcutsTests(GAETestCase):
 
 
 class SeachArcsTests(GAETestCase):
-    def test_init_error(self):
-        self.assertRaises(Exception, ArcSearch, Arc)
+    def test_both_nodes_none_error(self):
+        self.assertRaises(Exception, ArcSearch(Arc), )
 
 
 class DeleteArcTests(GAETestCase):
@@ -320,3 +321,45 @@ class HasArcTests(GAETestCase):
         self.assertEqual(arc.key, HasArcCommand(Arc, destination=destination)())
         self.assertEqual(arc.key, HasArcCommand(Arc, origin, destination)())
         self.assertIsNone(HasArcCommand(Arc, another_origin, destination)())
+
+
+class CreateNodeMock(Command):
+    def do_business(self):
+        self._to_commit = Node()
+        self.result = self._to_commit
+
+
+class CreateUniqueArcTests(GAETestCase):
+    def test_success_with_nodes(self):
+        origin = mommy.save_one(Node)
+        destination = mommy.save_one(Node)
+        CreateUniqueArc(Arc, origin, destination)()
+        self.assertIsNotNone(HasArcCommand(Arc, origin, destination)())
+
+    def test_success_with_commands(self):
+        origin_cmd = CreateNodeMock()
+        destination_cmd = CreateNodeMock()
+        CreateUniqueArc(Arc, origin_cmd, destination_cmd)()
+        self.assertIsNotNone(HasArcCommand(Arc, origin_cmd.result, destination_cmd.result)())
+
+    def test_has_arc(self):
+        origin = mommy.save_one(Node)
+        destination = mommy.save_one(Node)
+        another_destination_cmd = CreateNodeMock()
+        another_origin_cmd = CreateNodeMock()
+        CreateArc(Arc, origin, destination)()
+        # Test with nodes
+        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, origin, destination).execute)
+
+        #Test with one command
+        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, another_origin_cmd, destination))
+        self.assertIsNone(another_origin_cmd.result.key, 'Should not save origin once arc could not be created')
+
+        #Test with 2 commands
+        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, another_origin_cmd, NodeSearch(destination)))
+        self.assertIsNone(another_origin_cmd.result.key, 'Should not save origin once arc could not be created')
+        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, origin, another_destination_cmd))
+        self.assertIsNone(another_origin_cmd.result.key, 'Should not save destination once arc could not be created')
+        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, NodeSearch(origin), another_destination_cmd))
+        self.assertIsNone(another_origin_cmd.result.key, 'Should not save destination once arc could not be created')
+
