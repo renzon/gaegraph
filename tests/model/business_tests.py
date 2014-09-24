@@ -7,7 +7,7 @@ from gaebusiness.business import CommandExecutionException, Command, CommandSequ
 
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
-    SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch, CreateArc, CreateSingleArc
+    SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch, CreateArc, CreateSingleArc, HasArcCommand
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key, to_node_key
 from model.util import GAETestCase
 from mommygae import mommy
@@ -285,3 +285,38 @@ class CreateArcTests(GAETestCase):
         self.assertEqual(to_node_key(destination), to_node_key(arc.destination))
 
 
+class HasArcTests(GAETestCase):
+    def test_no_arc(self):
+        origin = mommy.save_one(Node)
+        destination = mommy.save_one(Node)
+        self.assertIsNone(HasArcCommand(Arc, origin=origin)())
+        self.assertIsNone(HasArcCommand(Arc, destination=destination)())
+        self.assertIsNone(HasArcCommand(Arc, origin, destination)())
+
+    def test_has_arc(self):
+        origin = mommy.save_one(Node)
+        destination = mommy.save_one(Node)
+        arc = CreateArc(Arc, origin, destination)()
+        self.assertEqual(arc.key, HasArcCommand(Arc, origin=origin)())
+        self.assertEqual(arc.key, HasArcCommand(Arc, destination=destination)())
+        self.assertEqual(arc.key, HasArcCommand(Arc, origin, destination)())
+
+    def test_only_origin_has_arc(self):
+        origin = mommy.save_one(Node)
+        destination = mommy.save_one(Node)
+        another_destination = mommy.save_one(Node)
+        arc = CreateArc(Arc, origin, destination)()
+        self.assertEqual(arc.key, HasArcCommand(Arc, origin=origin)())
+        self.assertEqual(arc.key, HasArcCommand(Arc, destination=destination)())
+        self.assertEqual(arc.key, HasArcCommand(Arc, origin, destination)())
+        self.assertIsNone(HasArcCommand(Arc, origin, another_destination)())
+
+    def test_only_destination_has_arc(self):
+        origin = mommy.save_one(Node)
+        destination = mommy.save_one(Node)
+        another_origin = mommy.save_one(Node)
+        arc = CreateArc(Arc, origin, destination)()
+        self.assertEqual(arc.key, HasArcCommand(Arc, origin=origin)())
+        self.assertEqual(arc.key, HasArcCommand(Arc, destination=destination)())
+        self.assertEqual(arc.key, HasArcCommand(Arc, origin, destination)())
+        self.assertIsNone(HasArcCommand(Arc, another_origin, destination)())

@@ -30,6 +30,13 @@ class NodeSearch(Command):
 
 
 class CreateArc(CommandSequential):
+    """
+    Command to create arc between origin and destination nodes
+    Usefull to create many to many relations between origins and destination
+
+    See CreateSingleArc for one to many connections or CreateUniqueArc for one to one connections
+    """
+
     def __init__(self, arc_class, origin=None, destination=None):
 
         # this values will be set latter on _extract_and_validate or handle_previous
@@ -75,8 +82,15 @@ class CreateArc(CommandSequential):
 
 
 class CreateSingleArc(CreateArc):
+    """
+    Command to create Arc between origin and destination only if there is not one conecting them
+    Usefull for create one to many associations where one origins node has many destination
+    or one destination has many origins
+    See CreateArc for many to many connections or CreateUniqueArc for one to one connections
+    """
+
     def _validate(self):
-        self.result = ArcSearch(self.arc_class, self.origin, self.destination)()
+        self.result = HasArcCommand(self.arc_class, self.origin, self.destination)()
         if self.result:
             self.add_error('nodes_error', 'The is already an Arc %s for those nodes' % self.result)
 
@@ -100,6 +114,19 @@ class ArcSearch(Command):
 
     def do_business(self):
         self.result = self._future.get_result()
+
+
+class HasArcCommand(ArcSearch):
+    """
+    Class used to know if there is an Arc connecting origin and destination
+    If origin or destination is None, it is going to search for any Arc
+    origin and destination can not be none at same time
+    """
+    def __init__(self, arc_class, origin=None, destination=None):
+        super(HasArcCommand, self).__init__(arc_class, origin, destination, True)
+
+    def set_up(self):
+        self._future = self._query.get_async(keys_only=self._keys_only)
 
 
 class ArcNodeSearchBase(ArcSearch):
