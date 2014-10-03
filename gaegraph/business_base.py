@@ -187,7 +187,41 @@ class CreateSingleArc(CreateArc):
     def _validate(self):
         self.result = HasArcCommand(self.arc_class, self.origin, self.destination)()
         if self.result:
-            self.add_error('nodes_error', 'The is already an Arc %s for those nodes' % self.result)
+            self.add_error('nodes_error', 'There is already an Arc %s for those nodes' % self.result)
+
+
+class CreateSingleOriginArc(CreateArc):
+    """
+    Command to create Arc between origin and destination only destination has not already an arc.
+
+    Useful for create one to many associations where one origin node has many destinations but destinations has only one origin.
+
+    See CreateArc or CreateSingleArc for many to many connections or CreateUniqueArc for one to one connections
+    """
+
+    def _validate(self):
+        self.result = HasArcCommand(self.arc_class, destination=self.destination)()
+        if self.result:
+            self.add_error('nodes_error',
+                           'There is already an Arc %s for destination %s. It is not possible creating another connection to origin %s' % (
+                               self.result, self.destination, self.origin))
+
+
+class CreateSingleDestinationArc(CreateArc):
+    """
+    Command to create Arc between origin and destination only destination has not already an arc.
+
+    Useful for create one to many associations where one origin node has many destinations but destinations has only one origin.
+
+    See CreateArc or CreateSingleArc for many to many connections or CreateUniqueArc for one to one connections
+    """
+
+    def _validate(self):
+        self.result = HasArcCommand(self.arc_class, self.origin)()
+        if self.result:
+            self.add_error('nodes_error',
+                           'There is already an Arc %s for origin %s. It is not possible creating another connection to destination %s' % (
+                               self.result, self.origin, self.destination ))
 
 
 class ArcSearch(Command):

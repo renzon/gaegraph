@@ -8,7 +8,7 @@ from gaebusiness.business import CommandExecutionException, Command, CommandSequ
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
     SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch, CreateArc, CreateSingleArc, HasArcCommand, \
-    CreateUniqueArc
+    CreateUniqueArc, CreateSingleOriginArc, CreateSingleDestinationArc
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key, to_node_key
 from model.util import GAETestCase
 from mommygae import mommy
@@ -351,7 +351,7 @@ class CreateUniqueArcTests(GAETestCase):
         # Test with nodes
         self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, origin, destination).execute)
 
-        #Test with one command
+        # Test with one command
         self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, another_origin_cmd, destination))
         self.assertIsNone(another_origin_cmd.result.key, 'Should not save origin once arc could not be created')
 
@@ -363,3 +363,28 @@ class CreateUniqueArcTests(GAETestCase):
         self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, NodeSearch(origin), another_destination_cmd))
         self.assertIsNone(another_origin_cmd.result.key, 'Should not save destination once arc could not be created')
 
+
+class CreateSingleOriginArcTests(GAETestCase):
+    def test_success_with_nodes(self):
+        origin = mommy.save_one(Node)
+        destination = mommy.save_one(Node)
+        CreateSingleOriginArc(Arc, origin, destination)()
+        self.assertIsNotNone(HasArcCommand(Arc, origin, destination)())
+
+        another_origin = mommy.save_one(Node)
+        create_single_origin_cmd = CreateSingleOriginArc(Arc, another_origin, destination)
+        self.assertRaises(CommandExecutionException, create_single_origin_cmd)
+        self.assertIsNone(HasArcCommand(Arc, another_origin, destination)())
+
+
+class CreateSingleDestinationArcTests(GAETestCase):
+    def test_success_with_nodes(self):
+        origin = mommy.save_one(Node)
+        destination = mommy.save_one(Node)
+        CreateSingleDestinationArc(Arc, origin, destination)()
+        self.assertIsNotNone(HasArcCommand(Arc, origin, destination)())
+
+        another_destination = mommy.save_one(Node)
+        create_single_destination_cmd = CreateSingleDestinationArc(Arc, origin, another_destination)
+        self.assertRaises(CommandExecutionException, create_single_destination_cmd)
+        self.assertIsNone(HasArcCommand(Arc, origin, another_destination)())
