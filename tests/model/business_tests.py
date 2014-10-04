@@ -23,6 +23,25 @@ class NodeAccessTests(GAETestCase):
         node_search.execute()
         self.assertEqual(node_key, node_search.result.key)
 
+    def test_error_when_node_is_not_class_instance(self):
+        class SpecificNode(Node):
+            pass
+
+        class SpecificNodeSearch(NodeSearch):
+            _model_class = SpecificNode
+
+        node = mommy.save_one(Node)
+
+        specific_node = mommy.save_one(SpecificNode)
+
+        specific_node_search = SpecificNodeSearch(specific_node)
+        self.assertEqual(specific_node, specific_node_search())
+
+        specific_node_search = SpecificNodeSearch(node)
+        self.assertRaises(CommandExecutionException, specific_node_search)
+        expected_error = {'node_error': '%s should be %s instance' % (node.key, SpecificNode.__name__)}
+        self.assertDictEqual(expected_error,specific_node_search.errors)
+
 
 class ArcSearchTests(GAETestCase):
     def test_destinations_search(self):
@@ -355,7 +374,7 @@ class CreateUniqueArcTests(GAETestCase):
         self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, another_origin_cmd, destination))
         self.assertIsNone(another_origin_cmd.result.key, 'Should not save origin once arc could not be created')
 
-        #Test with 2 commands
+        # Test with 2 commands
         self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, another_origin_cmd, NodeSearch(destination)))
         self.assertIsNone(another_origin_cmd.result.key, 'Should not save origin once arc could not be created')
         self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, origin, another_destination_cmd))

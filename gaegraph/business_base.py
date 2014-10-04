@@ -15,6 +15,8 @@ class NodeSearch(Command):
     """
     Command for search node by its id
     """
+    _model_class = None  # attribute to enforce node class
+
 
     def __init__(self, node_or_key_or_id):
         super(NodeSearch, self).__init__()
@@ -25,8 +27,11 @@ class NodeSearch(Command):
     def set_up(self):
         self._future = self.node_key.get_async()
 
+
     def do_business(self):
         self.result = self._future.get_result()
+        if self._model_class is not None and not isinstance(self.result, self._model_class):
+            self.add_error('node_error', '%s should be %s instance' % (self.result.key, self._model_class.__name__))
 
 
 class CreateArc(CommandSequential):
