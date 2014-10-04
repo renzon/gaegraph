@@ -119,7 +119,7 @@ class UpdateNodeStub(UpdateNode):
 class GaeBusinessCommandsShortcutsTests(GAETestCase):
     def test_update_node_creating_node_key(self):
         node = mommy.save_one(NodeStub)
-        self.assertEqual(node.key, UpdateNodeStub(node).model_key)
+        self.assertEqual(node, UpdateNodeStub(node).model_key)
         self.assertEqual(node.key, UpdateNodeStub(node.key).model_key)
         self.assertEqual(node.key, UpdateNodeStub(node.key.id()).model_key)
         self.assertEqual(node.key, UpdateNodeStub(unicode(node.key.id())).model_key)

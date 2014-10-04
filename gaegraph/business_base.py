@@ -369,7 +369,8 @@ class SingleOriginSearch(OriginsSearch):
 
 class UpdateNode(UpdateCommand):
     def __init__(self, model_key, **form_parameters):
-        super(UpdateNode, self).__init__(to_node_key(model_key), **form_parameters)
+        model_or_key = model_key if isinstance(model_key,ndb.Model) else to_node_key(model_key)
+        super(UpdateNode, self).__init__(model_or_key, **form_parameters)
 
 
 class DeleteNode(DeleteCommand):
