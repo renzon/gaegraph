@@ -133,6 +133,6 @@ setup(
     ],
     zip_safe=False,
     install_requires=[
-        'gaebusiness>=4.4.2',
+        'gaebusiness>=4.5.1',
         'gaeforms>=0.12']
 )
