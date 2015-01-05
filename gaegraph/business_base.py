@@ -5,7 +5,7 @@ from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
 from gaebusiness.business import Command, CommandSequential, CommandExecutionException, CommandParallel
-from gaebusiness.gaeutil import UpdateCommand, DeleteCommand
+from gaebusiness.gaeutil import UpdateCommand, DeleteCommand, ModelSearchCommand
 from gaegraph.model import destinations_cache_key, origins_cache_key, to_node_key, Node
 
 LONG_ERROR = "LONG_ERROR"
@@ -227,6 +227,11 @@ class CreateSingleDestinationArc(CreateArc):
             self.add_error('nodes_error',
                            'There is already an Arc %s for origin %s. It is not possible creating another connection to destination %s' % (
                                self.result, self.origin, self.destination ))
+
+class PaginatedArcSearch(ModelSearchCommand):
+    def __init__(self, query, page_size=100, start_cursor=None, offset=0, use_cache=True, cache_begin=True, **kwargs):
+        super(PaginatedArcSearch, self).__init__(query, page_size, start_cursor, offset, use_cache, cache_begin,
+                                                 **kwargs)
 
 
 class ArcSearch(Command):

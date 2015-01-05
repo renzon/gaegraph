@@ -40,7 +40,14 @@ class NodeAccessTests(GAETestCase):
         specific_node_search = SpecificNodeSearch(node)
         self.assertRaises(CommandExecutionException, specific_node_search)
         expected_error = {'node_error': '%s should be %s instance' % (node.key, SpecificNode.__name__)}
-        self.assertDictEqual(expected_error,specific_node_search.errors)
+        self.assertDictEqual(expected_error, specific_node_search.errors)
+
+    def test_none(self):
+        class DefinedClassNodeSearch(NodeSearch):
+            _model_class = Node
+
+        result = DefinedClassNodeSearch('1')()
+        self.assertIsNone(result)
 
 
 class ArcSearchTests(GAETestCase):
