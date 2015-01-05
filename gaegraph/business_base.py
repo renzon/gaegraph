@@ -30,8 +30,9 @@ class NodeSearch(Command):
 
     def do_business(self):
         self.result = self._future.get_result()
-        if self._model_class is not None and not isinstance(self.result, self._model_class):
-            self.add_error('node_error', '%s should be %s instance' % (self.result.key, self._model_class.__name__))
+        node = self.result
+        if self._model_class is not None and node and not isinstance(node, self._model_class):
+            self.add_error('node_error', '%s should be %s instance' % (node.key, self._model_class.__name__))
 
 
 class CreateArc(CommandSequential):
