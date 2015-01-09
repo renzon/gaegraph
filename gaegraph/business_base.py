@@ -177,7 +177,7 @@ class CreateUniqueArc(Command):
                 self.destination = self._destination_cmd.result
 
             cmd = CreateArc(self.origin, self.destination)
-            cmd.arc_class=self.arc_class
+            cmd.arc_class = self.arc_class
             cmd.set_up()
             cmd.do_business()
             return cmd.commit()
@@ -391,13 +391,26 @@ class UpdateNode(UpdateCommand):
         super(UpdateNode, self).__init__(model_or_key, **form_parameters)
 
 
-class DeleteNode(DeleteCommand):
+class DeleteNode(CommandParallel):
+    _model_class = None
+
     def __init__(self, *model_keys):
-        super(DeleteNode, self).__init__(*[to_node_key(m) for m in model_keys])
+        class _NodeSearch(NodeSearch):
+            _model_class = self._model_class
+
+        self.model_keys = [to_node_key(m) for m in model_keys]
+        super(DeleteNode, self).__init__(*[_NodeSearch(m) for m in self.model_keys])
+
+    def do_business(self):
+        super(DeleteNode, self).do_business()
+
+
+    def commit(self):
+        ndb.delete_multi(self.model_keys)
 
 
 class DeleteArcs(ArcSearch):
-    def __init__(self,origin=None, destination=None):
+    def __init__(self, origin=None, destination=None):
         super(DeleteArcs, self).__init__(origin, destination, False)
         self.__destination = destination
         self.__origin = origin

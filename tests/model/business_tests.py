@@ -149,11 +149,11 @@ class GaeBusinessCommandsShortcutsTests(GAETestCase):
 
     def test_delete_node_creating_node_key(self):
         nodes = [mommy.save_one(NodeStub) for i in range(3)]
-        node_keys = tuple(n.key for n in nodes)
-        self.assertTupleEqual(node_keys, DeleteNode(*node_keys).model_keys)
-        self.assertTupleEqual(node_keys, DeleteNode(*[k.id() for k in node_keys]).model_keys)
-        self.assertTupleEqual(node_keys, DeleteNode(*[unicode(k.id()) for k in node_keys]).model_keys)
-        self.assertTupleEqual(node_keys, DeleteNode(*nodes).model_keys)
+        node_keys = [n.key for n in nodes]
+        self.assertListEqual(node_keys, DeleteNode(*node_keys).model_keys)
+        self.assertListEqual(node_keys, DeleteNode(*[k.id() for k in node_keys]).model_keys)
+        self.assertListEqual(node_keys, DeleteNode(*[unicode(k.id()) for k in node_keys]).model_keys)
+        self.assertListEqual(node_keys, DeleteNode(*nodes).model_keys)
 
 
 class SeachArcsTests(GAETestCase):
@@ -479,3 +479,28 @@ class CreateSingleDestinationArcTests(GAETestCase):
         has_arc_cmd = HasArcExample(origin, another_destination)
 
         self.assertIsNone(has_arc_cmd())
+
+
+class AnotherNode(Node):
+    pass
+
+
+class DeleteNodeExample(DeleteNode):
+    _model_class = AnotherNode
+
+
+class DeleteNodeTest(GAETestCase):
+    def test_success(self):
+        node = mommy.save_one(AnotherNode)
+
+        DeleteNodeExample(node).execute()
+        self.assertIsNone(node.key.get())
+
+    def test_another_node_deletion(self):
+        not_another_node = mommy.save_one(Node)
+
+        cmd = DeleteNodeExample(not_another_node)
+        self.assertRaises(CommandExecutionException, cmd.execute)
+        self.assertDictEqual({'node_error': "%s should be AnotherNode instance" % not_another_node.key}, cmd.errors)
+        self.assertIsNotNone(not_another_node.key.get())
+
