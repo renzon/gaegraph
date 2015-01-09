@@ -51,7 +51,19 @@ class NodeAccessTests(GAETestCase):
 
 
 class ArcDestinationsSearch(DestinationsSearch):
-    _arc_class = Arc
+    arc_class = Arc
+
+
+class ArcOriginsSearch(OriginsSearch):
+    arc_class = Arc
+
+
+class SingleDestinationArcSearch(SingleDestinationSearch):
+    arc_class = Arc
+
+
+class SingleOriginArcSearch(SingleOriginSearch):
+    arc_class = Arc
 
 
 class ArcSearchTests(GAETestCase):
@@ -79,7 +91,7 @@ class ArcSearchTests(GAETestCase):
         ndb.put_multi([destination] + origins)
         arcs = [Arc(origin=ori.key, destination=destination.key) for ori in origins]
         ndb.put_multi(arcs)
-        search = OriginsSearch(Arc, destination)
+        search = ArcOriginsSearch(destination)
         search.execute()
         expected_keys = [n.key for n in origins]
         actual_keys = [n.key for n in search.result]
@@ -95,20 +107,20 @@ class ArcSearchTests(GAETestCase):
         destination = Node()
         origin = Node()
         ndb.put_multi([destination, origin])
-        search = SingleDestinationSearch(Arc, origin).execute()
+        search = SingleDestinationArcSearch(origin).execute()
         self.assertIsNone(search.result)
         Arc(origin=origin, destination=destination).put()
-        search = SingleDestinationSearch(Arc, origin).execute()
+        search = SingleDestinationArcSearch(origin).execute()
         self.assertEqual(destination.key, search.result.key)
 
     def test_single_origin_search(self):
         destination = Node()
         origin = Node()
         ndb.put_multi([destination, origin])
-        search = SingleOriginSearch(Arc, destination).execute()
+        search = SingleOriginArcSearch(destination).execute()
         self.assertIsNone(search.result)
         Arc(origin=origin, destination=destination).put()
-        search = SingleOriginSearch(Arc, destination)
+        search = SingleOriginArcSearch(destination)
         search()
         self.assertEqual(origin.key, search.result.key)
 
@@ -149,6 +161,10 @@ class SeachArcsTests(GAETestCase):
         self.assertRaises(Exception, ArcSearch(Arc), )
 
 
+class DeleteArcsExample(DeleteArcs):
+    arc_class = Arc
+
+
 class DeleteArcTests(GAETestCase):
     def test_delete_destination_arcs(self):
         self.maxDiff = None
@@ -160,31 +176,31 @@ class DeleteArcTests(GAETestCase):
         # using search to test cache
         destination_search_cmd = ArcDestinationsSearch(origin)
         self.assertListEqual(destinations, destination_search_cmd())
-        single_origin_search = SingleOriginSearch(Arc, destinations[-1])
+        single_origin_search = SingleOriginArcSearch(destinations[-1])
         self.assertEqual(origin, single_origin_search())
-        DeleteArcs(Arc, origin, destinations[-1])()
+        DeleteArcsExample(origin, destinations[-1])()
 
         destination_search_cmd = ArcDestinationsSearch(origin)
         self.assertListEqual(destinations[:-1], destination_search_cmd())
-        single_origin_search = SingleOriginSearch(Arc, destinations[-1])
+        single_origin_search = SingleOriginArcSearch(destinations[-1])
         self.assertIsNone(single_origin_search())
 
-        single_origin_search = SingleOriginSearch(Arc, destinations[1])
+        single_origin_search = SingleOriginArcSearch(destinations[1])
         self.assertEqual(origin, single_origin_search())
 
-        origins_search = OriginsSearch(Arc, destinations[1])
+        origins_search = ArcOriginsSearch(destinations[1])
         self.assertListEqual([origin], origins_search())
 
-        DeleteArcs(Arc, origin)()
+        DeleteArcsExample(origin)()
 
         destination_search_cmd = ArcDestinationsSearch(origin)
         self.assertListEqual([], destination_search_cmd())
-        single_origin_search = SingleOriginSearch(Arc, destinations[-1])
+        single_origin_search = SingleOriginArcSearch(destinations[-1])
         self.assertIsNone(single_origin_search())
-        single_origin_search = SingleOriginSearch(Arc, destinations[1])
+        single_origin_search = SingleOriginArcSearch(destinations[1])
         self.assertIsNone(single_origin_search())
 
-        origins_search = OriginsSearch(Arc, destinations[1])
+        origins_search = ArcOriginsSearch(destinations[1])
         self.assertListEqual([], origins_search())
 
 
@@ -196,93 +212,101 @@ class DeleteArcTests(GAETestCase):
         for a in arcs:
             a.put()
         # using search to test cache
-        origin_search_cmd = OriginsSearch(Arc, destination)
+        origin_search_cmd = ArcOriginsSearch(destination)
         self.assertListEqual(origins, origin_search_cmd())
-        single_destination_search = SingleDestinationSearch(Arc, origins[-1])
+        single_destination_search = SingleDestinationArcSearch(origins[-1])
         self.assertEqual(destination, single_destination_search())
-        DeleteArcs(Arc, origins[-1], destination)()
+        DeleteArcsExample(origins[-1], destination)()
 
-        origin_search_cmd = OriginsSearch(Arc, destination)
+        origin_search_cmd = ArcOriginsSearch(destination)
         self.assertListEqual(origins[:-1], origin_search_cmd())
-        single_destination_search = SingleDestinationSearch(Arc, origins[-1])
+        single_destination_search = SingleDestinationArcSearch(origins[-1])
         self.assertIsNone(single_destination_search())
 
-        single_destination_search = SingleDestinationSearch(Arc, origins[1])
+        single_destination_search = SingleDestinationArcSearch(origins[1])
         self.assertEqual(destination, single_destination_search())
         destinations_search = ArcDestinationsSearch(origins[1])
         self.assertListEqual([destination], destinations_search())
 
         # erasing all arcs poiting to destination
-        DeleteArcs(Arc, destination=destination)()
+        DeleteArcsExample(destination=destination)()
 
-        origin_search_cmd = OriginsSearch(Arc, destination)
+        origin_search_cmd = ArcOriginsSearch(destination)
         self.assertListEqual([], origin_search_cmd())
-        single_destination_search = SingleDestinationSearch(Arc, origins[-1])
+        single_destination_search = SingleDestinationArcSearch(origins[-1])
         self.assertIsNone(single_destination_search())
 
-        single_destination_search = SingleDestinationSearch(Arc, origins[1])
+        single_destination_search = SingleDestinationArcSearch(origins[1])
         self.assertIsNone(single_destination_search())
 
         destinations_search = ArcDestinationsSearch(origins[1])
         self.assertListEqual([], destinations_search())
 
 
+class CreateArcExample(CreateArc):
+    arc_class = Arc
+
+
+class CreateSingleArcExample(CreateSingleArc):
+    arc_class = Arc
+
+
 class CreateArcTests(GAETestCase):
     def test_create_arc_with_nodes(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
-        cmd = CreateArc(Arc, origin, destination)
+        cmd = CreateArcExample(origin, destination)
         self.assert_arc_creation(cmd, origin, destination)
 
     def test_create_arc_with_id(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
-        cmd = CreateArc(Arc, origin, str(destination.key.id()))
+        cmd = CreateArcExample(origin, str(destination.key.id()))
         self.assert_arc_creation(cmd, origin, destination)
 
     def test_create_arc_with_none(self):
         origin = mommy.save_one(Node)
-        cmd = CreateArc(Arc, origin, None)
+        cmd = CreateArcExample(origin, None)
         self.assertRaises(CommandExecutionException, cmd)
 
     def test_create_arc_with_invalid_id(self):
         origin = mommy.save_one(Node)
-        cmd = CreateArc(Arc, origin, '')
+        cmd = CreateArcExample(origin, '')
         self.assertRaises(CommandExecutionException, cmd)
 
     def test_create_arc_with_key(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
-        cmd = CreateArc(Arc, origin, destination.key)
+        cmd = CreateArcExample(origin, destination.key)
         self.assert_arc_creation(cmd, origin, destination)
 
     def test_create_arc_with_commands(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
 
-        cmd = CreateArc(Arc, NodeSearch(origin), destination)
+        cmd = CreateArcExample(NodeSearch(origin), destination)
         self.assert_arc_creation(cmd, origin, destination)
 
-        cmd = CreateArc(Arc, origin, NodeSearch(destination))
+        cmd = CreateArcExample(origin, NodeSearch(destination))
         self.assert_arc_creation(cmd, origin, destination)
 
-        cmd = CreateArc(Arc, NodeSearch(origin), NodeSearch(destination))
+        cmd = CreateArcExample(NodeSearch(origin), NodeSearch(destination))
         self.assert_arc_creation(cmd, origin, destination)
 
     def test_create_single_arc(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
-        cmd = CreateSingleArc(Arc, origin, destination)
+        cmd = CreateSingleArcExample(origin, destination)
         self.assert_arc_creation(cmd, origin, destination)
 
 
     def test_create_single_arc_for_second_time_error(self):
         destination = mommy.save_one(Node)
         origin = mommy.save_one(Node)
-        cmd = CreateSingleArc(Arc, origin, destination)
+        cmd = CreateSingleArcExample(origin, destination)
         self.assert_arc_creation(cmd, origin, destination)
 
-        cmd = CreateSingleArc(Arc, origin, destination)
+        cmd = CreateSingleArcExample(origin, destination)
         self.assertRaises(CommandExecutionException, cmd)
 
     def test_sequential(self):
@@ -292,8 +316,10 @@ class CreateArcTests(GAETestCase):
                 self.result = self._to_commit
 
         class CreateArcSequentially(CreateArc):
+            arc_class = Arc
+
             def __init__(self):
-                super(CreateArcSequentially, self).__init__(Arc, destination=Node().put())
+                super(CreateArcSequentially, self).__init__(destination=Node().put())
 
             def handle_previous(self, command):
                 self.origin = command.result
@@ -316,41 +342,51 @@ class CreateArcTests(GAETestCase):
         self.assertEqual(to_node_key(destination), to_node_key(arc.destination))
 
 
+class HasArcExample(HasArcCommand):
+    arc_class = Arc
+
+
 class HasArcTests(GAETestCase):
     def test_no_arc(self):
         origin = mommy.save_one(Node)
         destination = mommy.save_one(Node)
-        self.assertIsNone(HasArcCommand(Arc, origin=origin)())
-        self.assertIsNone(HasArcCommand(Arc, destination=destination)())
-        self.assertIsNone(HasArcCommand(Arc, origin, destination)())
+        self.assertIsNone(HasArcExample(origin=origin)())
+        self.assertIsNone(HasArcExample(destination=destination)())
+        self.assertIsNone(HasArcExample(origin, destination)())
 
     def test_has_arc(self):
         origin = mommy.save_one(Node)
         destination = mommy.save_one(Node)
-        arc = CreateArc(Arc, origin, destination)()
-        self.assertEqual(arc.key, HasArcCommand(Arc, origin=origin)())
-        self.assertEqual(arc.key, HasArcCommand(Arc, destination=destination)())
-        self.assertEqual(arc.key, HasArcCommand(Arc, origin, destination)())
+        arc = CreateArcExample(origin, destination)()
+        has_arc_cmd = HasArcExample(origin=origin)
+
+        self.assertEqual(arc.key, has_arc_cmd())
+        has_arc_cmd = HasArcExample(destination=destination)
+
+        self.assertEqual(arc.key, has_arc_cmd())
+        has_arc_cmd = HasArcExample(origin, destination)
+
+        self.assertEqual(arc.key, has_arc_cmd())
 
     def test_only_origin_has_arc(self):
         origin = mommy.save_one(Node)
         destination = mommy.save_one(Node)
         another_destination = mommy.save_one(Node)
-        arc = CreateArc(Arc, origin, destination)()
-        self.assertEqual(arc.key, HasArcCommand(Arc, origin=origin)())
-        self.assertEqual(arc.key, HasArcCommand(Arc, destination=destination)())
-        self.assertEqual(arc.key, HasArcCommand(Arc, origin, destination)())
-        self.assertIsNone(HasArcCommand(Arc, origin, another_destination)())
+        arc = CreateArcExample(origin, destination)()
+        self.assertEqual(arc.key, HasArcExample(origin=origin)())
+        self.assertEqual(arc.key, HasArcExample(destination=destination)())
+        self.assertEqual(arc.key, HasArcExample(origin, destination)())
+        self.assertIsNone(HasArcExample(origin, another_destination)())
 
     def test_only_destination_has_arc(self):
         origin = mommy.save_one(Node)
         destination = mommy.save_one(Node)
         another_origin = mommy.save_one(Node)
-        arc = CreateArc(Arc, origin, destination)()
-        self.assertEqual(arc.key, HasArcCommand(Arc, origin=origin)())
-        self.assertEqual(arc.key, HasArcCommand(Arc, destination=destination)())
-        self.assertEqual(arc.key, HasArcCommand(Arc, origin, destination)())
-        self.assertIsNone(HasArcCommand(Arc, another_origin, destination)())
+        arc = CreateArcExample(origin, destination)()
+        self.assertEqual(arc.key, HasArcExample(origin=origin)())
+        self.assertEqual(arc.key, HasArcExample(destination=destination)())
+        self.assertEqual(arc.key, HasArcExample(origin, destination)())
+        self.assertIsNone(HasArcExample(another_origin, destination)())
 
 
 class CreateNodeMock(Command):
@@ -359,62 +395,87 @@ class CreateNodeMock(Command):
         self.result = self._to_commit
 
 
+class CreateUniqueArcExample(CreateUniqueArc):
+    arc_class = Arc
+
+
 class CreateUniqueArcTests(GAETestCase):
     def test_success_with_nodes(self):
         origin = mommy.save_one(Node)
         destination = mommy.save_one(Node)
-        CreateUniqueArc(Arc, origin, destination)()
-        self.assertIsNotNone(HasArcCommand(Arc, origin, destination)())
+        CreateUniqueArcExample(origin, destination)()
+        has_arc_cmd = HasArcExample(origin, destination)
+
+        self.assertIsNotNone(has_arc_cmd())
 
     def test_success_with_commands(self):
         origin_cmd = CreateNodeMock()
         destination_cmd = CreateNodeMock()
-        CreateUniqueArc(Arc, origin_cmd, destination_cmd)()
-        self.assertIsNotNone(HasArcCommand(Arc, origin_cmd.result, destination_cmd.result)())
+        CreateUniqueArcExample(origin_cmd, destination_cmd)()
+        has_arc_cmd = HasArcExample(origin_cmd.result, destination_cmd.result)
+
+        self.assertIsNotNone(has_arc_cmd())
 
     def test_has_arc(self):
         origin = mommy.save_one(Node)
         destination = mommy.save_one(Node)
         another_destination_cmd = CreateNodeMock()
         another_origin_cmd = CreateNodeMock()
-        CreateArc(Arc, origin, destination)()
+        CreateArcExample(origin, destination)()
         # Test with nodes
-        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, origin, destination).execute)
+        self.assertRaises(CommandExecutionException, CreateUniqueArcExample(origin, destination).execute)
 
         # Test with one command
-        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, another_origin_cmd, destination))
+        self.assertRaises(CommandExecutionException, CreateUniqueArcExample(another_origin_cmd, destination))
         self.assertIsNone(another_origin_cmd.result.key, 'Should not save origin once arc could not be created')
 
         # Test with 2 commands
-        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, another_origin_cmd, NodeSearch(destination)))
+        self.assertRaises(CommandExecutionException,
+                          CreateUniqueArcExample(another_origin_cmd, NodeSearch(destination)))
         self.assertIsNone(another_origin_cmd.result.key, 'Should not save origin once arc could not be created')
-        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, origin, another_destination_cmd))
+        self.assertRaises(CommandExecutionException, CreateUniqueArcExample(origin, another_destination_cmd))
         self.assertIsNone(another_origin_cmd.result.key, 'Should not save destination once arc could not be created')
-        self.assertRaises(CommandExecutionException, CreateUniqueArc(Arc, NodeSearch(origin), another_destination_cmd))
+        self.assertRaises(CommandExecutionException,
+                          CreateUniqueArcExample(NodeSearch(origin), another_destination_cmd))
         self.assertIsNone(another_origin_cmd.result.key, 'Should not save destination once arc could not be created')
+
+
+class CreateSingleOriginArcExample(CreateSingleOriginArc):
+    arc_class = Arc
 
 
 class CreateSingleOriginArcTests(GAETestCase):
     def test_success_with_nodes(self):
         origin = mommy.save_one(Node)
         destination = mommy.save_one(Node)
-        CreateSingleOriginArc(Arc, origin, destination)()
-        self.assertIsNotNone(HasArcCommand(Arc, origin, destination)())
+        CreateSingleOriginArcExample(origin, destination)()
+        has_arc_command = HasArcExample(origin, destination)
+
+        self.assertIsNotNone(has_arc_command())
 
         another_origin = mommy.save_one(Node)
-        create_single_origin_cmd = CreateSingleOriginArc(Arc, another_origin, destination)
+        create_single_origin_cmd = CreateSingleOriginArcExample(another_origin, destination)
         self.assertRaises(CommandExecutionException, create_single_origin_cmd)
-        self.assertIsNone(HasArcCommand(Arc, another_origin, destination)())
+        has_arc_command = HasArcExample(another_origin, destination)
+        self.assertIsNone(has_arc_command())
+
+
+class CreateSingleDestinationArcExample(CreateSingleDestinationArc):
+    arc_class = Arc
 
 
 class CreateSingleDestinationArcTests(GAETestCase):
     def test_success_with_nodes(self):
         origin = mommy.save_one(Node)
         destination = mommy.save_one(Node)
-        CreateSingleDestinationArc(Arc, origin, destination)()
-        self.assertIsNotNone(HasArcCommand(Arc, origin, destination)())
+        CreateSingleDestinationArcExample(origin, destination)()
+        has_arc_cmd = HasArcExample(origin, destination)
+
+        self.assertIsNotNone(has_arc_cmd())
 
         another_destination = mommy.save_one(Node)
-        create_single_destination_cmd = CreateSingleDestinationArc(Arc, origin, another_destination)
+        create_single_destination_cmd = CreateSingleDestinationArcExample(origin, another_destination)
         self.assertRaises(CommandExecutionException, create_single_destination_cmd)
-        self.assertIsNone(HasArcCommand(Arc, origin, another_destination)())
+        has_arc_cmd = HasArcExample(origin, another_destination)
+
+        self.assertIsNone(has_arc_cmd())

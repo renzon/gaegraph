@@ -43,14 +43,14 @@ class CreateArc(CommandSequential):
 
     See CreateSingleArc for one to many connections or CreateUniqueArc for one to one connections
     """
+    arc_class = None
 
-    def __init__(self, arc_class, origin=None, destination=None):
+    def __init__(self, origin=None, destination=None):
 
         # this values will be set latter on _extract_and_validate or handle_previous
         self.origin = None
         self.destination = None
 
-        self.arc_class = arc_class
         self._command_parallel = CommandParallel(self._to_command(origin), self._to_command(destination))
         super(CreateArc, self).__init__(self._command_parallel)
 
@@ -98,14 +98,14 @@ class CreateUniqueArc(Command):
 
     See CreateArc for many to many connections or CreateSingleArc for one to many connections
     """
+    arc_class = None
 
-    def __init__(self, arc_class, origin=None, destination=None):
+    def __init__(self, origin=None, destination=None):
         super(CreateUniqueArc, self).__init__()
         self.destination = None
         self._destination_cmd = destination
         self.origin = None
         self._origin_cmd = origin
-        self.arc_class = arc_class
         self._origin_validation_cmd = None
         self._destination_validation_cmd = None
 
@@ -115,7 +115,9 @@ class CreateUniqueArc(Command):
             key = to_node_key(node)
         except:
             return None
-        return cmd_class(self.arc_class, key)
+        cmd = cmd_class(key)
+        cmd.arc_class = self.arc_class
+        return cmd
 
     def set_up(self):
         self._origin_validation_cmd = self._extract_command(self._origin_cmd, _OriginHasDestinationRaiseError)
@@ -174,7 +176,8 @@ class CreateUniqueArc(Command):
                 ndb.put_multi([self._destination_cmd.commit()])
                 self.destination = self._destination_cmd.result
 
-            cmd = CreateArc(self.arc_class, self.origin, self.destination)
+            cmd = CreateArc(self.origin, self.destination)
+            cmd.arc_class=self.arc_class
             cmd.set_up()
             cmd.do_business()
             return cmd.commit()
@@ -191,7 +194,9 @@ class CreateSingleArc(CreateArc):
     """
 
     def _validate(self):
-        self.result = HasArcCommand(self.arc_class, self.origin, self.destination)()
+        has_arc = HasArcCommand(self.origin, self.destination)
+        has_arc.arc_class = self.arc_class
+        self.result = has_arc()
         if self.result:
             self.add_error('nodes_error', 'There is already an Arc %s for those nodes' % self.result)
 
@@ -206,7 +211,9 @@ class CreateSingleOriginArc(CreateArc):
     """
 
     def _validate(self):
-        self.result = HasArcCommand(self.arc_class, destination=self.destination)()
+        has_arc_cmd = HasArcCommand(destination=self.destination)
+        has_arc_cmd.arc_class = self.arc_class
+        self.result = has_arc_cmd()
         if self.result:
             self.add_error('nodes_error',
                            'There is already an Arc %s for destination %s. It is not possible creating another connection to origin %s' % (
@@ -223,11 +230,14 @@ class CreateSingleDestinationArc(CreateArc):
     """
 
     def _validate(self):
-        self.result = HasArcCommand(self.arc_class, self.origin)()
+        has_arc_cmd = HasArcCommand(self.origin)
+        has_arc_cmd.arc_class = self.arc_class
+        self.result = has_arc_cmd()
         if self.result:
             self.add_error('nodes_error',
                            'There is already an Arc %s for origin %s. It is not possible creating another connection to destination %s' % (
                                self.result, self.origin, self.destination ))
+
 
 class PaginatedArcSearch(ModelSearchCommand):
     def __init__(self, query, page_size=100, start_cursor=None, offset=0, use_cache=True, cache_begin=True, **kwargs):
@@ -236,11 +246,12 @@ class PaginatedArcSearch(ModelSearchCommand):
 
 
 class ArcSearch(Command):
-    def __init__(self, arc_class, origin=None, destination=None, keys_only=True):
+    arc_class = None
+
+    def __init__(self, origin=None, destination=None, keys_only=True):
         super(ArcSearch, self).__init__()
         self.destination = destination
         self.origin = origin
-        self.arc_class = arc_class
         self._keys_only = keys_only
         self._query = None
         self._future = None
@@ -250,7 +261,6 @@ class ArcSearch(Command):
         destination = self.destination
         if not (origin or destination):
             raise Exception('at least one of origin and destination must be not None')
-        super(ArcSearch, self).__init__()
         if origin and destination:
             self._query = self.arc_class.query_by_origin_and_destination(origin, destination)
         elif origin:
@@ -274,8 +284,8 @@ class HasArcCommand(ArcSearch):
     origin and destination can not be none at same time
     """
 
-    def __init__(self, arc_class, origin=None, destination=None):
-        super(HasArcCommand, self).__init__(arc_class, origin, destination, True)
+    def __init__(self, origin=None, destination=None):
+        super(HasArcCommand, self).__init__(origin, destination, True)
 
     def set_up(self):
         self._validate()
@@ -283,8 +293,8 @@ class HasArcCommand(ArcSearch):
 
 
 class _OriginHasDestinationRaiseError(HasArcCommand):
-    def __init__(self, arc_class, origin):
-        super(_OriginHasDestinationRaiseError, self).__init__(arc_class, origin, None)
+    def __init__(self, origin):
+        super(_OriginHasDestinationRaiseError, self).__init__(origin, None)
         self.origin = origin
 
     def do_business(self):
@@ -299,8 +309,8 @@ class _OriginHasDestinationRaiseError(HasArcCommand):
 
 
 class _DestinationHasOriginRaiseError(HasArcCommand):
-    def __init__(self, arc_class, destination):
-        super(_DestinationHasOriginRaiseError, self).__init__(arc_class, None, destination)
+    def __init__(self, destination):
+        super(_DestinationHasOriginRaiseError, self).__init__(None, destination)
         self.destination = destination
 
     def do_business(self):
@@ -315,16 +325,18 @@ class _DestinationHasOriginRaiseError(HasArcCommand):
 
 
 class ArcNodeSearchBase(ArcSearch):
-    def __init__(self, arc_class, origin=None, destination=None):
-        super(ArcNodeSearchBase, self).__init__(arc_class, origin, destination, False)
+    arc_class = None
+
+    def __init__(self, origin=None, destination=None):
+        super(ArcNodeSearchBase, self).__init__(origin, destination, False)
         if origin and destination:
             raise Exception('only one of origin or destination can be not None')
         elif origin:
-            self._cache_key = destinations_cache_key(arc_class, origin)
+            self._cache_key = destinations_cache_key(self.arc_class, self.origin)
             self._arc_property = 'destination'
         else:
             self._arc_property = 'origin'
-            self._cache_key = origins_cache_key(arc_class, destination)
+            self._cache_key = origins_cache_key(self.arc_class, destination)
         self._node_cached_keys = None
 
     def set_up(self):
@@ -352,8 +364,8 @@ class ArcNodeSearchBase(ArcSearch):
 
 
 class DestinationsSearch(ArcNodeSearchBase):
-    def __init__(self, arc_class, origin):
-        super(DestinationsSearch, self).__init__(arc_class, origin)
+    def __init__(self, origin):
+        super(DestinationsSearch, self).__init__(origin)
 
 
 class SingleDestinationSearch(DestinationsSearch):
@@ -363,8 +375,8 @@ class SingleDestinationSearch(DestinationsSearch):
 
 
 class OriginsSearch(ArcNodeSearchBase):
-    def __init__(self, arc_class, destination):
-        super(OriginsSearch, self).__init__(arc_class, destination=destination)
+    def __init__(self, destination):
+        super(OriginsSearch, self).__init__(destination=destination)
 
 
 class SingleOriginSearch(OriginsSearch):
@@ -375,7 +387,7 @@ class SingleOriginSearch(OriginsSearch):
 
 class UpdateNode(UpdateCommand):
     def __init__(self, model_key, **form_parameters):
-        model_or_key = model_key if isinstance(model_key,ndb.Model) else to_node_key(model_key)
+        model_or_key = model_key if isinstance(model_key, ndb.Model) else to_node_key(model_key)
         super(UpdateNode, self).__init__(model_or_key, **form_parameters)
 
 
@@ -385,10 +397,9 @@ class DeleteNode(DeleteCommand):
 
 
 class DeleteArcs(ArcSearch):
-    def __init__(self, arc_class, origin=None, destination=None):
-        super(DeleteArcs, self).__init__(arc_class, origin, destination, False)
+    def __init__(self,origin=None, destination=None):
+        super(DeleteArcs, self).__init__(origin, destination, False)
         self.__destination = destination
-        self.__arc_class = arc_class
         self.__origin = origin
         self._arc_delete_future = None
 
@@ -399,16 +410,16 @@ class DeleteArcs(ArcSearch):
             futures = ndb.delete_multi_async([arc.key for arc in self.result])
             cache_keys = []
             if self.__origin:
-                cache_keys.append(destinations_cache_key(self.__arc_class, self.__origin))
+                cache_keys.append(destinations_cache_key(self.arc_class, self.__origin))
             else:
                 for arc in self.result:
-                    cache_keys.append(destinations_cache_key(self.__arc_class, arc.origin))
+                    cache_keys.append(destinations_cache_key(self.arc_class, arc.origin))
 
             if self.__destination:
-                cache_keys.append(origins_cache_key(self.__arc_class, self.__destination))
+                cache_keys.append(origins_cache_key(self.arc_class, self.__destination))
             else:
                 for arc in self.result:
-                    cache_keys.append(origins_cache_key(self.__arc_class, arc.destination))
+                    cache_keys.append(origins_cache_key(self.arc_class, arc.destination))
             memcache.delete_multi(cache_keys)
             [f.get_result() for f in futures]
 
