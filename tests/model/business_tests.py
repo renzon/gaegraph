@@ -50,6 +50,10 @@ class NodeAccessTests(GAETestCase):
         self.assertIsNone(result)
 
 
+class ArcDestinationsSearch(DestinationsSearch):
+    _arc_class = Arc
+
+
 class ArcSearchTests(GAETestCase):
     def test_destinations_search(self):
         origin = Node()
@@ -57,7 +61,7 @@ class ArcSearchTests(GAETestCase):
         ndb.put_multi([origin] + destinations)
         arcs = [Arc(origin=origin.key, destination=d.key) for d in destinations]
         ndb.put_multi(arcs)
-        search = DestinationsSearch(Arc, origin)
+        search = ArcDestinationsSearch(origin)
         search.execute()
         expected_keys = [n.key for n in destinations]
         actual_keys = [n.key for n in search.result]
@@ -154,13 +158,13 @@ class DeleteArcTests(GAETestCase):
         for a in arcs:
             a.put()
         # using search to test cache
-        destination_search_cmd = DestinationsSearch(Arc, origin)
+        destination_search_cmd = ArcDestinationsSearch(origin)
         self.assertListEqual(destinations, destination_search_cmd())
         single_origin_search = SingleOriginSearch(Arc, destinations[-1])
         self.assertEqual(origin, single_origin_search())
         DeleteArcs(Arc, origin, destinations[-1])()
 
-        destination_search_cmd = DestinationsSearch(Arc, origin)
+        destination_search_cmd = ArcDestinationsSearch(origin)
         self.assertListEqual(destinations[:-1], destination_search_cmd())
         single_origin_search = SingleOriginSearch(Arc, destinations[-1])
         self.assertIsNone(single_origin_search())
@@ -173,7 +177,7 @@ class DeleteArcTests(GAETestCase):
 
         DeleteArcs(Arc, origin)()
 
-        destination_search_cmd = DestinationsSearch(Arc, origin)
+        destination_search_cmd = ArcDestinationsSearch(origin)
         self.assertListEqual([], destination_search_cmd())
         single_origin_search = SingleOriginSearch(Arc, destinations[-1])
         self.assertIsNone(single_origin_search())
@@ -205,7 +209,7 @@ class DeleteArcTests(GAETestCase):
 
         single_destination_search = SingleDestinationSearch(Arc, origins[1])
         self.assertEqual(destination, single_destination_search())
-        destinations_search = DestinationsSearch(Arc, origins[1])
+        destinations_search = ArcDestinationsSearch(origins[1])
         self.assertListEqual([destination], destinations_search())
 
         # erasing all arcs poiting to destination
@@ -219,7 +223,7 @@ class DeleteArcTests(GAETestCase):
         single_destination_search = SingleDestinationSearch(Arc, origins[1])
         self.assertIsNone(single_destination_search())
 
-        destinations_search = DestinationsSearch(Arc, origins[1])
+        destinations_search = ArcDestinationsSearch(origins[1])
         self.assertListEqual([], destinations_search())
 
 
