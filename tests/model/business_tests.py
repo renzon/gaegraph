@@ -66,6 +66,37 @@ class SingleOriginArcSearch(SingleOriginSearch):
     arc_class = Arc
 
 
+class NodeSearchWithRelations(NodeSearch):
+    _model_class = Node
+    _relations = {'destinations': ArcDestinationsSearch, 'single': SingleOriginArcSearch}
+
+
+class CreateArcStub(CreateArc):
+    arc_class = Arc
+
+
+class NodeSearchWithRelationsTests(GAETestCase):
+    def test_not_existing_relation(self):
+        self.assertRaises(KeyError, NodeSearchWithRelations, '1', relations=['not existing'])
+
+    def test_relations(self):
+        node = mommy.save_one(Node)
+        destinations = [mommy.save_one(Node) for i in range(3)]
+        for d in destinations:
+            CreateArcStub(node, d).execute()
+        single = mommy.save_one(Node)
+        CreateArcStub(single, node).execute()
+        result = NodeSearchWithRelations(node)()
+        self.assertRaises(AttributeError, lambda: result.destinations)
+        self.assertRaises(AttributeError, lambda: result.single)
+        result = NodeSearchWithRelations(node, relations=['destinations'])()
+        self.assertEqual(destinations, result.destinations)
+        self.assertRaises(AttributeError, lambda: result.single)
+        result = NodeSearchWithRelations(node, relations=['destinations', 'single'])()
+        self.assertEqual(destinations, result.destinations)
+        self.assertEqual(single, result.single)
+
+
 class ArcSearchTests(GAETestCase):
     def test_destinations_search(self):
         origin = Node()

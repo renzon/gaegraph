@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
+from itertools import chain
 
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
@@ -11,7 +12,7 @@ from gaegraph.model import destinations_cache_key, origins_cache_key, to_node_ke
 LONG_ERROR = "LONG_ERROR"
 
 
-class NodeSearch(Command):
+class _NodeSearch(Command):
     """
     Command for search node by its id
     """
@@ -19,7 +20,7 @@ class NodeSearch(Command):
 
 
     def __init__(self, node_or_key_or_id):
-        super(NodeSearch, self).__init__()
+        super(_NodeSearch, self).__init__()
         self.node_key = to_node_key(node_or_key_or_id)
         self._future = None
 
@@ -33,6 +34,28 @@ class NodeSearch(Command):
         node = self.result
         if self._model_class is not None and node and not isinstance(node, self._model_class):
             self.add_error('node_error', '%s should be %s instance' % (node.key, self._model_class.__name__))
+
+
+class NodeSearch(CommandParallel):
+    _model_class = None  # attribute to enforce node class
+    _relations = {}
+
+    def __init__(self, node_or_key_or_id, relations=None):
+        node_key = to_node_key(node_or_key_or_id)
+        relations = relations or []
+        self._relations_commands = {k: self._relations[k](node_key)
+                                    for k in relations}
+        node_search = _NodeSearch(node_or_key_or_id)
+        node_search._model_class = self._model_class
+        cmds = list(self._relations_commands.itervalues())
+        cmds.append(node_search)
+        super(NodeSearch, self).__init__(*cmds)
+
+    def do_business(self):
+        super(NodeSearch, self).do_business()
+        result = self.result
+        for k, cmd in self._relations_commands.iteritems():
+            setattr(result, k, cmd.result)
 
 
 class CreateArc(CommandSequential):
