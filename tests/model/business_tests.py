@@ -3,12 +3,12 @@ from __future__ import absolute_import, unicode_literals
 
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-from gaebusiness.business import CommandExecutionException, Command, CommandSequential
 
+from gaebusiness.business import CommandExecutionException, Command, CommandSequential
 from gaeforms.ndb.form import ModelForm
 from gaegraph.business_base import NodeSearch, DestinationsSearch, OriginsSearch, SingleDestinationSearch, \
     SingleOriginSearch, UpdateNode, DeleteNode, DeleteArcs, ArcSearch, CreateArc, CreateSingleArc, HasArcCommand, \
-    CreateUniqueArc, CreateSingleOriginArc, CreateSingleDestinationArc
+    CreateUniqueArc, CreateSingleOriginArc, CreateSingleDestinationArc, ModelSearchWithRelations
 from gaegraph.model import Node, Arc, destinations_cache_key, origins_cache_key, to_node_key
 from model.util import GAETestCase
 from mommygae import mommy
@@ -95,6 +95,44 @@ class NodeSearchWithRelationsTests(GAETestCase):
         result = NodeSearchWithRelations(node, relations=['destinations', 'single'])()
         self.assertEqual(destinations, result.destinations)
         self.assertEqual(single, result.single)
+
+
+class ModelForSearch(Node):
+    pass
+
+
+class ModelSearchWithRelationsStub(ModelSearchWithRelations):
+    _relations = {'destinations': ArcDestinationsSearch, 'single': SingleOriginArcSearch}
+
+
+class ModelSearchWithRelationsTests(GAETestCase):
+    def test_not_existing_relation(self):
+        self.assertRaises(KeyError, ModelSearchWithRelationsStub, relations=['not existing'])
+
+    def test_relations(self):
+        node_with_relations = mommy.save_one(ModelForSearch)
+        destinations = [mommy.save_one(Node) for i in range(3)]
+        for d in destinations:
+            CreateArcStub(node_with_relations, d).execute()
+        single = mommy.save_one(Node)
+        CreateArcStub(single, node_with_relations).execute()
+        mommy.save_one(ModelForSearch)  # created only for search purpose
+        result = ModelSearchWithRelationsStub()()
+        self.assertEqual(2, len(result))
+        self.assertRaises(AttributeError, lambda: result[0].destinations)
+        self.assertRaises(AttributeError, lambda: result[0].single)
+        self.assertRaises(AttributeError, lambda: result[1].destinations)
+        self.assertRaises(AttributeError, lambda: result[1].single)
+        result = ModelSearchWithRelationsStub(relations=['destinations'])()
+        self.assertEqual(destinations, result[0].destinations)
+        self.assertRaises(AttributeError, lambda: result[0].single)
+        self.assertEqual([], result[1].destinations)
+        self.assertRaises(AttributeError, lambda: result[1].single)
+        result = ModelSearchWithRelationsStub(relations=['destinations', 'single'])()
+        self.assertEqual(destinations, result[0].destinations)
+        self.assertEqual(single, result[0].single)
+        self.assertEqual([], result[1].destinations)
+        self.assertIsNone(result[1].single)
 
 
 class ArcSearchTests(GAETestCase):

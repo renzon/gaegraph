@@ -58,6 +58,15 @@ class NodeSearch(CommandParallel):
             setattr(result, k, cmd.result)
 
 
+class ModelSearchWithRelations(ModelSearchCommand):
+    _relations = {}
+
+    def __init__(self, query, page_size=100, start_cursor=None, offset=0, use_cache=True, cache_begin=True,
+                 relations=None, **kwargs):
+        super(ModelSearchWithRelations, self).__init__(query, page_size, start_cursor, offset, use_cache, cache_begin,
+                                                       **kwargs)
+
+
 class CreateArc(CommandSequential):
     """
     Command to create arc between origin and destination.
