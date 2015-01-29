@@ -104,10 +104,18 @@ class ModelForSearch(Node):
 class ModelSearchWithRelationsStub(ModelSearchWithRelations):
     _relations = {'destinations': ArcDestinationsSearch, 'single': SingleOriginArcSearch}
 
+    def __init__(self, page_size=100, start_cursor=None, offset=0, use_cache=True, cache_begin=True,
+                 relations=None, **kwargs):
+        super(ModelSearchWithRelationsStub, self).__init__(ModelForSearch.query_by_creation(), page_size, start_cursor,
+                                                           offset, use_cache,
+                                                           cache_begin, relations, **kwargs)
+
 
 class ModelSearchWithRelationsTests(GAETestCase):
     def test_not_existing_relation(self):
-        self.assertRaises(KeyError, ModelSearchWithRelationsStub, relations=['not existing'])
+        mommy.save_one(ModelForSearch)
+        cmd = ModelSearchWithRelationsStub(relations=['not existing'])
+        self.assertRaises(KeyError, cmd)
 
     def test_relations(self):
         node_with_relations = mommy.save_one(ModelForSearch)

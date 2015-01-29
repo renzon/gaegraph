@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
-from itertools import chain
+from itertools import chain, izip
 
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
@@ -57,12 +57,17 @@ class NodeSearch(CommandParallel):
     def __init__(self, node_or_key_or_id, relations=None):
         node_search = _NodeSearch(node_or_key_or_id)
         node_search._model_class = self._model_class
-        self._relation_filler = RelationFiller(node_or_key_or_id, self._relations, relations)
-        super(NodeSearch, self).__init__(self._relation_filler, node_search)
+        if relations:
+            self._relation_filler = RelationFiller(node_or_key_or_id, self._relations, relations)
+            super(NodeSearch, self).__init__(self._relation_filler, node_search)
+        else:
+            self._relation_filler = None
+            super(NodeSearch, self).__init__(node_search)
 
     def do_business(self):
         super(NodeSearch, self).do_business()
-        self._relation_filler.fill(self.result)
+        if self._relation_filler:
+            self._relation_filler.fill(self.result)
 
 
 class ModelSearchWithRelations(ModelSearchCommand):
@@ -72,6 +77,15 @@ class ModelSearchWithRelations(ModelSearchCommand):
                  relations=None, **kwargs):
         super(ModelSearchWithRelations, self).__init__(query, page_size, start_cursor, offset, use_cache, cache_begin,
                                                        **kwargs)
+        self._required_relations = relations
+
+    def do_business(self, stop_on_error=True):
+        super(ModelSearchWithRelations, self).do_business(stop_on_error)
+        if self._required_relations and self.result:
+            cmds = CommandParallel(*(RelationFiller(r, self._relations, self._required_relations) for r in self.result))
+            cmds()
+            for r, filler in izip(self.result, cmds):
+                filler.fill(r)
 
 
 class CreateArc(CommandSequential):
