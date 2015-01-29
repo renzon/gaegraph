@@ -36,26 +36,33 @@ class _NodeSearch(Command):
             self.add_error('node_error', '%s should be %s instance' % (node.key, self._model_class.__name__))
 
 
+class RelationFiller(CommandParallel):
+    def __init__(self, node_or_key_or_id, relation_factory, relations):
+        node_key = to_node_key(node_or_key_or_id)
+        relations = relations or []
+        self._relations_commands = {k: relation_factory[k](node_key)
+                                    for k in relations}
+
+        super(RelationFiller, self).__init__(*self._relations_commands.itervalues())
+
+    def fill(self, obj):
+        for k, cmd in self._relations_commands.iteritems():
+            setattr(obj, k, cmd.result)
+
+
 class NodeSearch(CommandParallel):
     _model_class = None  # attribute to enforce node class
     _relations = {}
 
     def __init__(self, node_or_key_or_id, relations=None):
-        node_key = to_node_key(node_or_key_or_id)
-        relations = relations or []
-        self._relations_commands = {k: self._relations[k](node_key)
-                                    for k in relations}
         node_search = _NodeSearch(node_or_key_or_id)
         node_search._model_class = self._model_class
-        cmds = list(self._relations_commands.itervalues())
-        cmds.append(node_search)
-        super(NodeSearch, self).__init__(*cmds)
+        self._relation_filler = RelationFiller(node_or_key_or_id, self._relations, relations)
+        super(NodeSearch, self).__init__(self._relation_filler, node_search)
 
     def do_business(self):
         super(NodeSearch, self).do_business()
-        result = self.result
-        for k, cmd in self._relations_commands.iteritems():
-            setattr(result, k, cmd.result)
+        self._relation_filler.fill(self.result)
 
 
 class ModelSearchWithRelations(ModelSearchCommand):
