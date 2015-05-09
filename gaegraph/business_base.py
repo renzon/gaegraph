@@ -70,6 +70,14 @@ class NodeSearch(CommandParallel):
             self._relation_filler.fill(self.result)
 
 
+def _fill_relations_helper(cmd):
+    if cmd._required_relations and cmd.result:
+        cmds = CommandParallel(*(RelationFiller(r, cmd._relations, cmd._required_relations) for r in cmd.result))
+        cmds()
+        for r, filler in izip(cmd.result, cmds):
+            filler.fill(r)
+
+
 class ModelSearchWithRelations(ModelSearchCommand):
     _relations = {}
 
@@ -81,12 +89,7 @@ class ModelSearchWithRelations(ModelSearchCommand):
 
     def do_business(self, stop_on_error=True):
         super(ModelSearchWithRelations, self).do_business(stop_on_error)
-        if self._required_relations and self.result:
-            cmds = CommandParallel(*(RelationFiller(r, self._relations, self._required_relations) for r in self.result))
-            cmds()
-            for r, filler in izip(self.result, cmds):
-                filler.fill(r)
-
+        _fill_relations_helper(self)
 
 class CreateArc(CommandSequential):
     """
@@ -379,8 +382,9 @@ class _DestinationHasOriginRaiseError(HasArcCommand):
 
 class ArcNodeSearchBase(ArcSearch):
     arc_class = None
+    _relations = {}
 
-    def __init__(self, origin=None, destination=None):
+    def __init__(self, origin=None, destination=None,relations=None):
         super(ArcNodeSearchBase, self).__init__(origin, destination, False)
         if origin and destination:
             raise Exception('only one of origin or destination can be not None')
@@ -391,6 +395,7 @@ class ArcNodeSearchBase(ArcSearch):
             self._arc_property = 'origin'
             self._cache_key = origins_cache_key(self.arc_class, destination)
         self._node_cached_keys = None
+        self._required_relations = relations
 
     def set_up(self):
         try:
@@ -417,8 +422,8 @@ class ArcNodeSearchBase(ArcSearch):
 
 
 class DestinationsSearch(ArcNodeSearchBase):
-    def __init__(self, origin):
-        super(DestinationsSearch, self).__init__(origin)
+    def __init__(self, origin, relations=None):
+        super(DestinationsSearch, self).__init__(origin, relations=relations)
 
 
 class SingleDestinationSearch(DestinationsSearch):
