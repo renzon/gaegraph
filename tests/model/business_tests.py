@@ -75,6 +75,7 @@ class SingleDestinationArcSearch(SingleDestinationSearch):
 
 class SingleOriginArcSearch(SingleOriginSearch):
     arc_class = Arc
+    _relations = {ORIGIN_RELATION: ArcOriginsSearch}
 
 
 class NodeSearchWithRelations(NodeSearch):
@@ -267,6 +268,21 @@ class ArcSearchTests(GAETestCase):
         search = SingleOriginArcSearch(destination)
         search()
         self.assertEqual(origin.key, search.result.key)
+
+    def test_single_origin_search_with_realtion(self):
+        destination = Node()
+        origin = Node()
+        origin_origins = [Node() for i in xrange(3)]
+        ndb.put_multi([destination, origin] + origin_origins)
+        search = SingleOriginArcSearch(destination).execute()
+        self.assertIsNone(search.result)
+        arcs = [Arc(origin=origin, destination=destination)]
+        arcs.extend([Arc(origin=ori.key, destination=origin.key) for ori in origin_origins])
+        ndb.put_multi(arcs)
+        search = SingleOriginArcSearch(destination, relations=[ORIGIN_RELATION])
+        search()
+        self.assertEqual(origin.key, search.result.key)
+        self.assertListEqual(origin_origins, search.result.origin_origins)
 
 
 class NodeStub(Node):
