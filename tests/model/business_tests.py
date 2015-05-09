@@ -51,6 +51,7 @@ class NodeAccessTests(GAETestCase):
 
 
 DESTINATION_RELATION = 'destination_destinations'
+ORIGIN_RELATION = 'origin_origins'
 
 
 class ArcDestinationsSearch(DestinationsSearch):
@@ -62,6 +63,9 @@ ArcDestinationsSearch._relations = {DESTINATION_RELATION: ArcDestinationsSearch}
 
 class ArcOriginsSearch(OriginsSearch):
     arc_class = Arc
+
+# Doing it here is inevitable once it is not possible referring to class before its existence
+ArcOriginsSearch._relations = {ORIGIN_RELATION: ArcOriginsSearch}
 
 
 class SingleDestinationArcSearch(SingleDestinationSearch):
@@ -205,6 +209,27 @@ class ArcSearchTests(GAETestCase):
         # Assert Arcs are removed from cache
         Arc(origin=origins[0].key, destination=destination.key).put()
         self.assertIsNone(memcache.get(origins_cache_key(Arc, destination)))
+
+
+    def test_origins_search_with_relations(self):
+        destination = Node()
+        origins = [Node() for i in xrange(3)]
+        first_origin_origins = [Node() for i in xrange(3)]
+        ndb.put_multi([destination] + origins + first_origin_origins)
+        arcs = [Arc(origin=ori.key, destination=destination.key) for ori in origins]
+        arcs.extend([Arc(origin=ori.key, destination=origins[0].key) for ori in first_origin_origins])
+        ndb.put_multi(arcs)
+        search = ArcOriginsSearch(destination, relations=[DESTINATION_RELATION])
+        search.execute()
+
+        self.assertListEqual(origins, search.result)
+        first_node = search.result[0]
+        self.assertListEqual(first_origin_origins, first_node.origin_origins)
+
+        other_nodes = search.result[1:]
+        for other in other_nodes:
+            self.assertListEqual([], other.origin_origins)
+
 
     def test_single_destination_search(self):
         destination = Node()
