@@ -50,8 +50,14 @@ class NodeAccessTests(GAETestCase):
         self.assertIsNone(result)
 
 
+DESTINATION_RELATION = 'destination_destinations'
+
+
 class ArcDestinationsSearch(DestinationsSearch):
     arc_class = Arc
+
+# Doing it here is inevitable once it is not possible referring to class before its existence
+ArcDestinationsSearch._relations = {DESTINATION_RELATION: ArcDestinationsSearch}
 
 
 class ArcOriginsSearch(OriginsSearch):
@@ -107,8 +113,8 @@ class ModelSearchWithRelationsStub(ModelSearchWithRelations):
     def __init__(self, page_size=100, start_cursor=None, offset=0, use_cache=True, cache_begin=True,
                  relations=None, **kwargs):
         super(ModelSearchWithRelationsStub, self).__init__(ModelForSearch.query_by_creation(), page_size, start_cursor,
-                                                           offset, use_cache,
-                                                           cache_begin, relations, **kwargs)
+            offset, use_cache,
+            cache_begin, relations, **kwargs)
 
 
 class ModelSearchWithRelationsTests(GAETestCase):
@@ -161,6 +167,26 @@ class ArcSearchTests(GAETestCase):
         # Assert Arcs are removed from cache
         Arc(origin=origin.key, destination=destinations[0].key).put()
         self.assertIsNone(memcache.get(destinations_cache_key(Arc, origin)))
+
+    def test_destinations_search_with_relations(self):
+        origin = Node()
+        destinations = [Node() for i in xrange(3)]
+        first_destination_destinations = [Node() for i in xrange(3)]
+        ndb.put_multi([origin] + destinations + first_destination_destinations)
+        arcs = [Arc(origin=origin.key, destination=d.key) for d in destinations]
+        arcs.extend([Arc(origin=destinations[0].key, destination=d.key) for d in first_destination_destinations])
+        ndb.put_multi(arcs)
+
+        search = ArcDestinationsSearch(origin, relations=[DESTINATION_RELATION])
+        search.execute()
+        self.assertListEqual(destinations, search.result)
+        first_node = search.result[0]
+        self.assertListEqual(first_destination_destinations, first_node.destination_destinations)
+
+        other_nodes = search.result[1:]
+        for other in other_nodes:
+            self.assertListEqual([], other.destination_destinations)
+
 
     def test_origins_search(self):
         destination = Node()
