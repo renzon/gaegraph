@@ -219,7 +219,7 @@ class ArcSearchTests(GAETestCase):
         arcs = [Arc(origin=ori.key, destination=destination.key) for ori in origins]
         arcs.extend([Arc(origin=ori.key, destination=origins[0].key) for ori in first_origin_origins])
         ndb.put_multi(arcs)
-        search = ArcOriginsSearch(destination, relations=[DESTINATION_RELATION])
+        search = ArcOriginsSearch(destination, relations=[ORIGIN_RELATION])
         search.execute()
 
         self.assertListEqual(origins, search.result)

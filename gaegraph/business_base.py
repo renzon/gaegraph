@@ -91,6 +91,7 @@ class ModelSearchWithRelations(ModelSearchCommand):
         super(ModelSearchWithRelations, self).do_business(stop_on_error)
         _fill_relations_helper(self)
 
+
 class CreateArc(CommandSequential):
     """
     Command to create arc between origin and destination.
@@ -384,7 +385,7 @@ class ArcNodeSearchBase(ArcSearch):
     arc_class = None
     _relations = {}
 
-    def __init__(self, origin=None, destination=None,relations=None):
+    def __init__(self, origin=None, destination=None, relations=None):
         super(ArcNodeSearchBase, self).__init__(origin, destination, False)
         if origin and destination:
             raise Exception('only one of origin or destination can be not None')
@@ -434,8 +435,8 @@ class SingleDestinationSearch(DestinationsSearch):
 
 
 class OriginsSearch(ArcNodeSearchBase):
-    def __init__(self, destination):
-        super(OriginsSearch, self).__init__(destination=destination)
+    def __init__(self, destination, relations=None):
+        super(OriginsSearch, self).__init__(destination=destination, relations=relations)
 
 
 class SingleOriginSearch(OriginsSearch):
