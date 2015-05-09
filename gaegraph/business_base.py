@@ -419,6 +419,7 @@ class ArcNodeSearchBase(ArcSearch):
         if cached_keys:
             self.result = ndb.get_multi(cached_keys)
         self.result = [e for e in self.result if e]
+        _fill_relations_helper(self)
 
 
 class DestinationsSearch(ArcNodeSearchBase):
