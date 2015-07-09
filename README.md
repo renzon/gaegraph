@@ -3,7 +3,7 @@
 Gaegraph is a lib to simplify creating relationships in Google App Engine Datastore. It uses [Graph Theory](https://en.wikipedia.org/wiki/Graph_theory) to model a NoSQL database, with Arcs (relationship in SQL) between Nodes (documents in NoSQL, tables in SQL).
 
 ## Example
-
+![Graph Database example of Author and Books](grap-database-example.png)
 An user can be the author of many books and a book can have many authors. Let's create this n x n relationship using Gaegraph.
 
 ```python
