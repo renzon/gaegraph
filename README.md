@@ -14,8 +14,11 @@ from google.appengine.ext import ndb
 class Book(Node):
     title = ndb.StringProperty(required=True)
 
+class Author(Node):
+    name = ndb.StringProperty(required=True)
+
 class AuthorArc(Arc):
-    origin = ndb.KeyProperty()
+    origin = ndb.KeyProperty(Author)
     destination = ndb.KeyProperty(Book)
 ```
 
