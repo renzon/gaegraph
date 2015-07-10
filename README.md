@@ -51,4 +51,6 @@ python tests/testloader.py
 Interested in knowing more about Graphs?
 
 - [Graphs in Python](http://www.python-course.eu/graphs_python.php)
-- [NDB - Google App Engine Datastore API](https://code.google.com/p/appengine-ndb-experiment/source/browse/README), by Guido van Rossum
+- [Python Patterns - Implementing Graphs](https://www.python.org/doc/essays/graphs/)
+- [Graph Database](https://en.wikipedia.org/wiki/Graph_database)
+- [World of Mathematics - Graph Theory](http://world.mathigon.org/Graph_Theory)
