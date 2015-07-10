@@ -24,6 +24,16 @@ class AuthorArc(Arc):
 
 ## Instalation
 
+First, you need to have installed [Google App Engine SDK](https://cloud.google.com/appengine/downloads) for Python. 
+Make sure you have google_appengine directory in your PATH.
+
+```
+export GAE_SDK=/path/to/google_appengine/
+PATH=$PATH:$GAE_SDK
+```
+
+Then, you can install gaegraph using pip.
+
 ```
 pip instal gaegraph
 ```
