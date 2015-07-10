@@ -4,7 +4,8 @@ Gaegraph is a lib to simplify creating relationships in Google App Engine Datast
 
 ## Example
 ![Graph Database example of Author and Books](graph-database-example.png)
-An user can be the author of many books and a book can have many authors. Let's create this n x n relationship using Gaegraph.
+
+An author can write many books and a book can have many authors. Let's create this n x n relationship using Gaegraph.
 
 ```python
 from gaegraph.model import Node, Arc
